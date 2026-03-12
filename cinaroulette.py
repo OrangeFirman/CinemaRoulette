@@ -11,11 +11,22 @@ import os
 import json as _json_mod
 import concurrent.futures
 import re as _re
+import sys
+
+# Determine paths based on whether we are running as a script or an .exe
+if getattr(sys, 'frozen', False):
+    # Running as a compiled .exe
+    USER_DIR = os.path.dirname(sys.executable)  # Where the .exe is sitting (for API keys)
+    DATA_DIR = sys._MEIPASS                     # The temporary folder where index.html is unpacked
+else:
+    # Running as a raw python script
+    USER_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATA_DIR = USER_DIR
 
 # --- Config & Caching ---
 _counter_lock = threading.Lock()
-_counter_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'api_counter.json')
-_key_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'api_key.json')
+_counter_file = os.path.join(USER_DIR, 'api_counter.json')
+_key_file = os.path.join(USER_DIR, 'api_key.json')
 
 _config_cache = None
 _key_cache = None
@@ -79,7 +90,6 @@ TMDB_IMG  = "https://image.tmdb.org/t/p/w500"
 
 def get_tmdb_key():
     global _key_cache
-    # _key_cache holds KP key; load tmdb separately from api_key.json
     try:
         with open(_key_file) as f:
             return _json_mod.load(f).get("tmdb_key", "")
@@ -117,7 +127,11 @@ def tmdb_request(path):
 def tmdb_poster_for_film(title_en, title_ru, year):
     """Search TMDb by EN title then RU fallback, return full poster URL or None."""
     for query in filter(None, [title_en, title_ru]):
-        params = urllib.parse.urlencode({"query": query, "year": year or ""})
+        params = urllib.parse.urlencode({
+            "query": query, 
+            "year": year or "",
+            "language": "ru-RU"  # Tell TMDb to prioritize Russian posters
+        })
         data = tmdb_request(f"/search/movie?{params}")
         if not data:
             continue
@@ -246,7 +260,7 @@ def get_films_batch(count=3, rating_min=1, rating_max=10, year_min=1900, year_ma
         for future in concurrent.futures.as_completed(futures):
             with lock:
                 if len(films) >= count:
-                    break
+                        break
 
     return films[:count]
 
@@ -311,19 +325,17 @@ def format_film(f):
     name_orig = f.get("nameOriginal") or ""
     title_en = name_en or name_orig or name_ru or "Unknown"
     title_ru = name_ru or name_orig or name_en or "Unknown"
-    raw_poster = f.get("posterUrlPreview") or f.get("posterUrl")
-    # Proxy through local server to avoid CDN/CORS/geo issues
-    if raw_poster:
-        poster = "/api/poster?url=" + urllib.parse.quote(raw_poster, safe="")
-    else:
-        poster = None
+    
+    # Bypass the local python proxy. The browser fetches CDNs perfectly on its own.
+    poster = f.get("posterUrlPreview") or f.get("posterUrl")
+    
     return {
         "id": f.get("kinopoiskId"),
         "title_ru": title_ru,
         "title_en": title_en,
         "year": f.get("year"),
         "poster": poster,
-        "poster_raw": raw_poster,  # kept for TMDb fallback lookup
+        "poster_raw": poster, 
         "rating": f.get("ratingKinopoisk") or f.get("ratingImdb"),
         "genres": [g["genre"] for g in f.get("genres", [])][:2],
     }
@@ -484,7 +496,7 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/":
             try:
-                html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
+                html_path = os.path.join(DATA_DIR, 'index.html')
                 with open(html_path, 'rb') as f:
                     content = f.read()
                 
@@ -525,8 +537,6 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 # Return 404 so frontend onerror fires and tries TMDb
                 self.send_error_json(f"Poster fetch failed: {e}", 404)
-
-
 
         elif path == "/api/stats":
             self.send_json({
