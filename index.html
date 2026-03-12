@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CinemaRoulette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Golos+Text:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #e8c547;
+    --accent2: #c0392b;
+    --text: #f0f0f0;
+    --muted: #666;
+    --film-red: #c0392b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body.lang-ru { font-family: 'Golos Text', sans-serif; }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 48px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    text-decoration: none;
+  }
+
+  .logo-icon {
+    width: 30px;
+    height: auto;
+    flex-shrink: 0;
+    fill: var(--accent);
+  }
+
+  .api-counter { display: flex; align-items: center; gap: 16px; font-size: 11px; letter-spacing: 1px; color: var(--muted); }
+  .counter-bar-wrap { width: 80px; height: 3px; background: var(--border); }
+  .counter-bar { height: 3px; background: var(--accent); transition: width 0.4s ease; }
+  .counter-bar.warn { background: #e67e22; }
+  .counter-bar.danger { background: var(--film-red); }
+
+  .lang-toggle { display: flex; gap: 0; border: 1px solid var(--border); }
+  .lang-btn { background: none; border: none; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 2px; padding: 6px 14px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+  .lang-btn.active { background: var(--accent); color: var(--bg); font-weight: 500; }
+
+  .key-btn { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 2px; padding: 6px 14px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+  .key-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .key-btn.key-set { border-color: rgba(232,197,71,0.3); color: var(--muted); }
+  .key-btn.key-set::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #2ecc71; flex-shrink: 0; }
+  .key-btn.key-missing { border-color: rgba(232,197,71,0.5); color: var(--accent); animation: pulse-border 2s ease-in-out infinite; }
+  .key-btn.key-missing::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: rgba(232,197,71,0.4); }
+    50% { border-color: rgba(232,197,71,1); }
+  }
+
+  .key-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 400; backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+  .key-overlay.active { display: flex; }
+  .key-panel { background: var(--surface); border: 1px solid var(--border); width: 90%; max-width: 560px; position: relative; animation: panelIn 0.25s ease; }
+  .key-panel-header { padding: 28px 36px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .key-panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; color: var(--accent); }
+  .key-panel-body { padding: 32px 36px 36px; }
+  .key-step { display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start; }
+  .key-step-num { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--accent); opacity: 0.5; flex-shrink: 0; line-height: 1.3; }
+  .key-step-text { font-size: 13px; color: #999; line-height: 1.7; }
+  .key-step-text a { color: var(--accent); text-decoration: none; }
+  .key-step-text a:hover { text-decoration: underline; }
+  .key-input-row { display: flex; gap: 8px; margin-top: 28px; }
+  .key-input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 10px 14px; outline: none; transition: border-color 0.2s; letter-spacing: 1px; }
+  .key-input:focus { border-color: var(--accent); }
+  .key-input::placeholder { color: var(--muted); letter-spacing: 0; }
+  .key-input.key-error { border-color: var(--film-red); }
+  .key-save-btn { background: var(--accent); border: none; color: #111; font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 3px; padding: 10px 24px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+  .key-save-btn:hover { background: #f0d060; }
+  .key-save-btn:disabled { opacity: 0.4; cursor: default; }
+  .key-status-msg { margin-top: 10px; font-size: 12px; letter-spacing: 1px; min-height: 18px; }
+  .key-status-msg.ok { color: #2ecc71; }
+  .key-status-msg.err { color: var(--film-red); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 80px 48px; }
+  .hero-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 56px; padding-bottom: 40px; border-bottom: 1px solid var(--border); gap: 40px; }
+  .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(56px, 7.5vw, 96px); line-height: 0.9; letter-spacing: 2px; flex-shrink: 0; }
+  .hero-title em { color: var(--accent); font-style: normal; display: block; }
+  .hero-right { max-width: 360px; padding-bottom: 6px; }
+  .hero-tagline { font-size: 14px; color: var(--muted); line-height: 1.75; margin-bottom: 16px; }
+  .why-link { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s; }
+  .why-link:hover { opacity: 0.7; }
+  .modes-label { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+  .modes { display: grid; grid-template-columns: 1fr 1.45fr 1fr; gap: 12px; margin-bottom: 80px; align-items: stretch; }
+  
+  .mode-card { background: var(--surface); cursor: pointer; position: relative; overflow: hidden; border: 1px solid var(--border); text-align: center; color: var(--text); font-family: 'DM Sans', sans-serif; display: flex; flex-direction: column; transition: background 0.25s, border-color 0.3s, transform 0.25s, box-shadow 0.3s; padding: 0; }
+  .mode-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255,255,255,0.02) 0%, transparent 60%); pointer-events: none; }
+  .mode-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--border); transform: scaleX(0); transition: transform 0.35s ease, background 0.2s; transform-origin: left; }
+  .mode-card:hover { background: #161616; transform: translateY(-4px); border-color: rgba(232,197,71,0.2); box-shadow: 0 16px 40px rgba(0,0,0,0.4); }
+  .mode-card:hover::after { transform: scaleX(1); background: var(--accent); }
+  .mode-card.featured { border-color: rgba(232,197,71,0.2); background: #141414; box-shadow: 0 0 0 0 rgba(232,197,71,0); }
+  .mode-card.featured:hover { border-color: rgba(232,197,71,0.5); box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 30px rgba(232,197,71,0.06); }
+  .mode-icon-wrap { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; padding: 40px 20% 32px; position: relative; }
+  .mode-icon-wrap::after { content: ''; position: absolute; bottom: 0; left: 20%; right: 20%; height: 1px; background: var(--border); transition: background 0.3s; }
+  .mode-card:hover .mode-icon-wrap::after { background: rgba(232,197,71,0.15); }
+  .mode-icon-svg { width: 100%; height: auto; fill: #3a3a3a; transition: fill 0.35s ease, transform 0.35s ease; display: block; }
+  .mode-card:hover .mode-icon-svg { fill: var(--accent); transform: scale(1.06); }
+
+  @keyframes reel-spin { 0% { transform: scale(1) rotate(0deg); } 100% { transform: scale(1.06) rotate(360deg); } }
+  .mode-card.featured:hover .mode-icon-svg { animation: reel-spin 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards; fill: var(--accent); }
+
+  .mode-text { flex: 1; padding: 24px 28px 36px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .mode-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px; color: var(--muted); transition: color 0.25s; line-height: 1.1; }
+  .mode-card:hover .mode-name { color: var(--text); }
+  .mode-card.featured .mode-name { font-size: 24px; color: var(--accent); }
+  .mode-card.featured:hover .mode-name { color: var(--accent); }
+  .mode-desc { font-size: 14px; color: #555; line-height: 1.7; transition: color 0.25s; max-width: 260px; }
+  .mode-card:hover .mode-desc { color: var(--muted); }
+  .mode-card.featured .mode-desc { color: #666; }
+  .mode-card.featured:hover .mode-desc { color: #888; }
+
+  .why-overlay { display: none; position: fixed; inset: 0; background: #0a0a0a; z-index: 300; overflow-y: auto; animation: fadeIn 0.3s ease; }
+  .why-overlay.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .why-close { position: absolute; top: 48px; right: 0; background: none; border: 1px solid var(--border); color: var(--muted); width: 40px; height: 40px; cursor: pointer; font-size: 18px; transition: border-color 0.2s, color 0.2s; z-index: 301; }
+  .why-close:hover { border-color: var(--accent); color: var(--accent); }
+  .why-content { max-width: 680px; margin: 0 auto; padding: 100px 48px 120px; position: relative; }
+  .why-eyebrow { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--accent); margin-bottom: 24px; }
+  .why-heading { font-family: 'Bebas Neue', sans-serif; font-size: clamp(40px, 5vw, 64px); line-height: 0.95; letter-spacing: 2px; margin-bottom: 48px; }
+  .why-heading em { color: var(--accent); font-style: normal; }
+  .why-section { margin-bottom: 40px; padding-bottom: 40px; border-bottom: 1px solid var(--border); }
+  .why-section:last-child { border-bottom: none; }
+  .why-section-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 3px; color: var(--accent); margin-bottom: 14px; }
+  .why-section p { font-size: 15px; color: #999; line-height: 1.8; margin-bottom: 12px; }
+
+  .panel-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; backdrop-filter: blur(4px); }
+  .panel-overlay.active { display: flex; align-items: center; justify-content: center; }
+  .panel { background: var(--surface); border: 1px solid var(--border); width: 90%; max-width: 900px; max-height: 90vh; overflow-y: auto; position: relative; animation: panelIn 0.25s ease; }
+  .panel-header { padding: 32px 40px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 3px; color: var(--accent); }
+  .panel-close { background: none; border: 1px solid var(--border); color: var(--muted); width: 36px; height: 36px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .panel-close:hover { border-color: var(--accent); color: var(--accent); }
+  .panel-body { padding: 40px; }
+
+  .filter-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+  .filter-tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 3px; padding: 0 0 12px; margin-right: 32px; cursor: pointer; transition: color 0.2s, border-color 0.2s; margin-bottom: -1px; }
+  .filter-tab:hover { color: var(--text); }
+  .filter-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .filter-pane { display: none; }
+  .filter-pane.active { display: block; }
+  .filter-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .filter-section { margin-bottom: 28px; }
+
+  .dual-range-wrap { position: relative; height: 36px; display: flex; align-items: center; }
+  .dual-range-track { position: absolute; left: 0; right: 0; height: 3px; background: var(--border); border-radius: 2px; pointer-events: none; }
+  .dual-range-fill { position: absolute; height: 3px; background: var(--accent); border-radius: 2px; pointer-events: none; }
+  .dual-range-wrap input[type=range] { position: absolute; width: 100%; height: 3px; background: transparent; -webkit-appearance: none; appearance: none; pointer-events: none; outline: none; margin: 0; }
+  .dual-range-wrap input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); cursor: pointer; pointer-events: all; box-shadow: 0 0 0 1px var(--accent); transition: transform 0.15s; }
+  .dual-range-wrap input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  .range-vals { display: flex; justify-content: space-between; margin-top: 4px; }
+  .range-val { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--accent); letter-spacing: 1px; }
+  .range-sep { font-size: 12px; color: var(--border); letter-spacing: 2px; align-self: center; }
+
+  .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 1px; padding: 5px 11px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+  .chip:hover { border-color: #444; color: var(--text); }
+  .chip.on-genre { border-color: var(--accent); color: var(--accent); background: rgba(232,197,71,0.06); }
+  .chip.on-country { border-color: var(--film-red); color: var(--film-red); background: rgba(192,57,43,0.06); }
+
+  .genre-group { margin-bottom: 12px; }
+  .genre-group-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--border); margin-bottom: 6px; }
+
+  .lb-drop { border: 1px dashed var(--border); padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
+  .lb-drop:hover { border-color: var(--accent); background: rgba(232,197,71,0.03); }
+  .lb-drop.has-file { border-style: solid; border-color: rgba(232,197,71,0.3); }
+  .lb-drop-icon { font-size: 24px; margin-bottom: 8px; }
+  .lb-drop-label { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .lb-drop-filename { font-size: 13px; color: var(--accent); margin-top: 4px; letter-spacing: 1px; }
+  .lb-drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .lb-hint { font-size: 10px; color: var(--border); line-height: 1.7; margin-top: 10px; letter-spacing: 0.5px; }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--border); cursor: pointer; }
+  .toggle-label { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+  .toggle-switch { width: 36px; height: 20px; background: var(--border); border-radius: 10px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-switch::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: transform 0.2s; }
+  .toggle-switch.on::after { transform: translateX(16px); }
+
+  .loading { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 60px 0; }
+  .loading-reel { width: 64px; height: 64px; fill: var(--accent); animation: reel-spin-load 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite; opacity: 0.9; }
+  @keyframes reel-spin-load { 0% { transform: rotate(0deg); opacity: 0.5; } 40% { opacity: 1; } 100% { transform: rotate(360deg); opacity: 0.5; } }
+  .loading-text { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); animation: pulse-text 1.4s ease-in-out infinite; }
+  @keyframes pulse-text { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+  .mystery-reveal { text-align: center; padding: 20px 0; }
+  .mystery-duration { font-family: 'Bebas Neue', sans-serif; font-size: 80px; color: var(--accent); line-height: 1; }
+  .mystery-duration-label { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); margin-bottom: 40px; }
+  .mystery-hint { font-size: 14px; color: var(--muted); margin-bottom: 40px; font-style: italic; }
+
+  .draft-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .draft-card { cursor: pointer; border: 1px solid var(--border); overflow: hidden; transition: border-color 0.2s, transform 0.2s; background: var(--bg); }
+  .draft-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 0 28px rgba(232,197,71,0.35); }
+  .draft-poster { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; background: var(--surface2); }
+  .draft-poster-placeholder { width: 100%; aspect-ratio: 2/3; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 40px; }
+  .draft-info { padding: 14px 16px; }
+  .draft-title { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 1px; margin-bottom: 4px; line-height: 1.2; }
+  .draft-year { font-size: 12px; color: var(--muted); }
+  .draft-reroll { margin-top: 24px; text-align: center; }
+
+  .draft-card { position: relative; }
+  .draft-watch-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; opacity: 0; transition: opacity 0.2s; z-index: 3; pointer-events: none; }
+  .draft-card:hover .draft-watch-overlay { opacity: 1; }
+  .draft-watch-label { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 4px; color: var(--accent); border: 2px solid var(--accent); padding: 6px 16px; }
+  .draft-watch-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.35); }
+
+  .roulette-chambers { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+  .roulette-dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--accent); background: transparent; transition: background 0.3s, transform 0.2s; }
+  .roulette-dot.used { background: var(--accent); transform: scale(0.8); border-color: var(--accent); }
+
+  .roulette-viewport { overflow: hidden; position: relative; height: 330px; margin-bottom: 24px; }
+  .roulette-sprocket { position: absolute; left: 0; right: 0; height: 18px; z-index: 5; pointer-events: none; background: repeating-linear-gradient( to right, var(--surface) 0px, var(--surface) 8px, transparent 8px, transparent 18px, var(--surface) 18px, var(--surface) 26px, transparent 26px, transparent 36px ); }
+  .roulette-sprocket.top { top: 0; }
+  .roulette-sprocket.bottom { bottom: 0; }
+
+  .roulette-fade-left, .roulette-fade-right { position: absolute; top: 0; bottom: 0; width: 160px; z-index: 4; pointer-events: none; }
+  .roulette-fade-left { left: 0; background: linear-gradient(to right, var(--surface) 30%, transparent); }
+  .roulette-fade-right { right: 0; background: linear-gradient(to left, var(--surface) 30%, transparent); }
+
+  .roulette-selector { position: absolute; top: 18px; bottom: 18px; left: 50%; transform: translateX(-50%); width: 202px; border-left: 2px solid rgba(232,197,71,0.45); border-right: 2px solid rgba(232,197,71,0.45); z-index: 3; pointer-events: none; }
+  .roulette-strip { display: flex; gap: 10px; position: absolute; top: 0; bottom: 0; left: 0; align-items: center; will-change: transform; }
+  
+  .roulette-slot { flex-shrink: 0; width: 180px; height: 270px; position: relative; transform: scale(0.65); filter: blur(10px) brightness(0.22) grayscale(0.6); transition: transform 0.45s ease, filter 0.45s ease; }
+  .roulette-slot.active { transform: scale(1); filter: none; cursor: pointer; z-index: 2; transition: transform 0.25s ease, box-shadow 0.25s ease; }
+  .roulette-slot.active img, .roulette-slot.active .roulette-slot-placeholder { filter: blur(5px) brightness(1); transition: filter 0.25s ease; }
+  .roulette-slot.active:hover { transform: scale(1.06); box-shadow: 0 0 32px rgba(232,197,71,0.4); }
+  .roulette-slot.active:hover img, .roulette-slot.active:hover .roulette-slot-placeholder { filter: blur(4px) brightness(1.1); }
+  .roulette-slot img, .roulette-slot-placeholder { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+  .roulette-slot-placeholder { background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 36px; }
+
+  .roulette-watch-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; opacity: 0; transition: opacity 0.2s; pointer-events: none; filter: none; z-index: 3; }
+  .roulette-slot.active:hover .roulette-watch-overlay { opacity: 1; }
+  .roulette-overlay-label { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px; color: var(--accent); border: 2px solid var(--accent); padding: 6px 14px; white-space: nowrap; }
+  .roulette-overlay-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.35); }
+  .roulette-strip.is-spinning .roulette-slot { transform: scale(0.72) !important; filter: blur(6px) brightness(0.3) grayscale(0.5) !important; transition: none !important; cursor: default !important; pointer-events: none !important; }
+
+  .roulette-controls { display: flex; justify-content: center; }
+  .roulette-spin-btn { background: var(--accent); border: none; color: #111; font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 5px; padding: 14px 72px; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+  .roulette-spin-btn:hover { background: #f0d060; }
+  .roulette-spin-btn:active { transform: scale(0.97); }
+  .roulette-spin-btn:disabled { opacity: 0.2; cursor: default; pointer-events: none; }
+
+  .player-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 500; flex-direction: column; }
+  .player-overlay.active { display: flex; }
+  .player-topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: rgba(0,0,0,0.8); position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
+  .player-movie-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--accent); }
+  .player-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 20px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.2s; }
+  .player-back:hover { border-color: var(--accent); color: var(--accent); }
+  .player-frame-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 60px; }
+  .player-frame-wrap iframe { width: 100%; height: 100%; border: none; }
+
+  .btn { display: inline-block; border: none; padding: 14px 32px; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { background: #f0d060; }
+  .btn-ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+  .btn + .btn { margin-left: 12px; }
+
+  .resolving { text-align: center; padding: 60px; }
+  .resolving-text { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-top: 20px; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  @media (max-width: 768px) {
+    header { padding: 16px 20px; }
+    main { padding: 40px 20px; }
+    .modes { grid-template-columns: 1fr; }
+    .hero-row { flex-direction: column; align-items: flex-start; gap: 24px; }
+    .mode-icon-wrap { padding: 28px 30% 24px; }
+    .draft-grid { grid-template-columns: 1fr; }
+    .panel-body { padding: 24px 20px; }
+    .panel-header { padding: 24px 20px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<svg style="display: none;">
+  <symbol id="icon-reel" viewBox="0 0 446 446">
+    <path d="M222.75 0C99.55 0 0 99.6224 0 222.912C0 346.202 99.55 445.824 222.75 445.824C345.95 445.824 445.5 345.651 445.5 222.912C445.5 100.173 345.95 0 222.75 0ZM298.65 57.2416C330.55 57.2416 356.4 83.1104 356.4 115.034C356.4 146.957 330.55 172.826 298.65 172.826C266.75 172.826 240.9 146.957 240.9 115.034C240.9 83.1104 266.75 57.2416 298.65 57.2416ZM222.75 246.029C210.1 246.029 199.65 235.571 199.65 222.912C199.65 210.253 210.1 199.795 222.75 199.795C235.4 199.795 245.85 210.253 245.85 222.912C245.85 235.571 235.4 246.029 222.75 246.029ZM147.4 57.2416C179.3 57.2416 205.15 83.1104 205.15 115.034C205.15 146.957 179.3 172.826 147.4 172.826C115.5 172.826 89.65 146.957 89.65 115.034C89.1 83.1104 115.5 57.2416 147.4 57.2416ZM158.4 259.238C158.4 291.162 132.55 317.03 100.65 317.03C68.75 317.03 42.9 291.162 42.9 259.238C42.9 227.315 68.75 201.446 100.65 201.446C132.55 201.446 158.4 227.315 158.4 259.238ZM222.75 290.611C254.65 290.611 280.5 316.48 280.5 348.403C280.5 380.326 254.65 406.746 222.75 406.746C190.85 406.746 165 380.877 165 348.954C165 317.03 190.85 290.611 222.75 290.611ZM287.1 259.238C287.1 227.315 312.95 201.446 344.85 201.446C376.75 201.446 402.6 227.315 402.6 259.238C402.6 291.162 376.75 317.03 344.85 317.03C312.95 317.03 287.1 291.162 287.1 259.238Z"/>
+  </symbol>
+</svg>
+
+<header>
+  <a class="logo" href="#">
+    <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 409 409"><path d="M1.45454e-05 204.402C1.45454e-05 91.8032 91.767 0 204.321 0C316.875 0 408.642 91.8032 408.642 204.402C408.642 285.046 361.491 355.547 293.046 388.515H398.502C404.079 388.515 408.642 393.08 408.642 398.659C408.642 404.238 404.079 408.803 398.502 408.803H204.321C91.767 408.803 1.45454e-05 317 1.45454e-05 204.402ZM273.78 161.29C304.707 161.29 329.55 136.437 329.55 105.498C329.55 74.5584 304.707 49.7056 273.78 49.7056C242.853 49.7056 218.01 74.5584 218.01 105.498C218.01 136.437 242.853 161.29 273.78 161.29ZM261.105 237.877C261.105 268.816 285.948 293.669 316.875 293.669C347.802 293.669 372.645 268.816 372.645 237.877C372.645 206.938 347.802 182.085 316.875 182.085C285.948 182.085 261.105 206.938 261.105 237.877ZM134.355 49.1984C103.428 49.1984 78.585 74.0512 78.585 104.99C78.585 135.93 103.428 160.782 134.355 160.782C165.282 160.782 190.125 135.93 190.125 104.99C190.125 74.0512 165.282 49.1984 134.355 49.1984ZM35.49 237.877C35.49 268.816 60.333 293.669 91.26 293.669C122.187 293.669 147.03 268.816 147.03 237.877C147.03 206.938 122.187 182.085 91.26 182.085C60.333 182.085 35.49 206.938 35.49 237.877ZM180.492 204.402C180.492 217.589 191.139 228.24 204.321 228.24C217.503 228.24 228.15 217.589 228.15 204.402C228.15 191.214 217.503 180.563 204.321 180.563C191.139 180.563 180.492 191.214 180.492 204.402ZM204.321 264.251C173.394 264.251 148.551 289.104 148.551 320.043C148.551 350.982 173.394 375.835 204.321 375.835C235.248 375.835 260.091 350.982 260.091 320.043C260.091 289.104 235.248 264.251 204.321 264.251Z"/></svg>
+    <span style="color:var(--text);letter-spacing:4px">CINEMA</span><span style="color:var(--accent);letter-spacing:2px">ROULETTE</span>
+  </a>
+  <div class="api-counter" id="apiCounter" title="Daily API requests used">
+    <div>
+      <div id="counterText" style="margin-bottom:4px">— / 500</div>
+      <div style="font-size:10px;color:var(--border)" id="resetText">resets in —</div>
+    </div>
+    <div class="counter-bar-wrap">
+      <div class="counter-bar" id="counterBar" style="width:0%"></div>
+    </div>
+  </div>
+  <div class="lang-toggle">
+    <button class="lang-btn active" onclick="setLang('en')">EN</button>
+    <button class="lang-btn" onclick="setLang('ru')">RU</button>
+  </div>
+  <button class="key-btn key-missing" id="keyBtn" onclick="openKeyOverlay()" title="Set API key">
+    API KEY
+  </button>
+</header>
+
+<main>
+  <div class="hero-row">
+    <h1 class="hero-title">DISCOVER<br>CINEMA<br><em>BLINDLY.</em></h1>
+    <div class="hero-right">
+      <p class="hero-tagline" data-en="A tool for watching films without the safety net of ratings, trailers, or recommendations. Three modes, one principle: commit before you know what you're getting." data-ru="Инструмент для просмотра фильмов без страховки в виде рейтингов, трейлеров и рекомендаций. Три режима, один принцип: соглашайся, не зная, на что идёшь.">A tool for watching films without the safety net of ratings, trailers, or recommendations. Three modes, one principle: commit before you know what you're getting.</p>
+      <button class="why-link" onclick="openWhy()" data-en="Why this exists →" data-ru="Откуда это взялось →">Why this exists →</button>
+    </div>
+  </div>
+
+  <p class="modes-label" data-en="— Choose your mode" data-ru="— Выбери режим">— Choose your mode</p>
+
+  <div class="modes">
+    <button class="mode-card" onclick="openMystery()">
+      <div class="mode-icon-wrap">
+        <svg class="mode-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 65"><path d="M12.543 65H1.26758C0.57377 64.9999 0 64.423 0 63.7256V54.1455H12.543V65ZM28.4062 64.999H15.8643V54.1455H28.4062V64.999ZM44.2705 64.999H31.7285V54.1455H44.2705V64.999ZM60.1348 64.999H47.5928V54.1455H60.1348V64.999ZM76 63.7256C75.9998 64.4133 75.4426 64.999 74.7324 64.999H63.457V54.1455H76V63.7256ZM75.999 50.8057H0V14.1943H75.999V50.8057ZM37.5 41.8584C36.0204 41.8584 34.8167 43.0612 34.8164 44.5322C34.8164 46.0211 36.0238 47.2207 37.5 47.2207C38.9797 47.2206 40.1836 46.0175 40.1836 44.5322C40.1833 43.0613 38.9796 41.8585 37.5 41.8584ZM37.5 19C32.8129 19 29 22.7995 29 27.4707H33.3086C33.3086 25.1669 35.1883 23.293 37.5 23.293C38.5832 23.293 39.6275 23.738 40.4346 24.5459C41.2453 25.3538 41.6914 26.3915 41.6914 27.4746C41.6913 29.0833 40.7883 30.5223 39.3369 31.2314C36.9121 32.4063 35.3478 35.0207 35.3477 37.8818V39.4346H39.6562V37.8818C39.6528 36.6471 40.2718 35.5497 41.2275 35.084C44.1693 33.6516 46 30.7342 46 27.4707C46 25.2445 45.1073 23.1237 43.4824 21.5078C41.8576 19.8886 39.7336 19 37.5 19ZM12.543 10.8545H0V1.27441C0 0.577028 0.57377 0.00010174 1.26758 0H12.543V10.8545ZM28.4062 10.8545H15.8643V0H28.4062V10.8545ZM44.2705 10.8545H31.7285V0H44.2705V10.8545ZM60.1348 10.8545H47.5928V0H60.1348V10.8545ZM75.6289 0.37207L75.626 0.375977C75.8568 0.607273 75.999 0.92585 75.999 1.27441V10.8545H63.457V0H74.7314L75.6289 0.37207Z"/></svg>
+      </div>
+      <div class="mode-text">
+        <div class="mode-name" data-en="Mystery Movie" data-ru="Тайный Фильм">Mystery Movie</div>
+        <p class="mode-desc" data-en="One random film. No poster, no title, no context. You find out what it is only once it starts." data-ru="Один случайный фильм. Без постера, названия и контекста. Узнаешь, что смотришь, только когда начнётся.">One random film. No poster, no title, no context. You find out what it is only once it starts.</p>
+      </div>
+    </button>
+
+    <button class="mode-card featured" onclick="openRoulette()">
+      <div class="mode-icon-wrap">
+        <svg class="mode-icon-svg"><use href="#icon-reel"></use></svg>
+      </div>
+      <div class="mode-text">
+        <div class="mode-name" data-en="Cinema Roulette" data-ru="Кино-Рулетка">Cinema Roulette</div>
+        <p class="mode-desc" data-en="Spin a cylinder of six films. Five are good. One is a disaster. The posters are blurred. You spin or you commit — but you can't look it up first." data-ru="Крутишь барабан из шести фильмов. Пять хороших, один провальный. Постеры размыты — узнать, какой попался, не получится.">Spin a cylinder of six films. Five are good. One is a disaster. The posters are blurred. You spin or you commit — but you can't look it up first.</p>
+      </div>
+    </button>
+
+    <button class="mode-card" onclick="showDraftFilters()">
+      <div class="mode-icon-wrap">
+        <svg class="mode-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 475 468"><path d="M345.455 152.032H136.742C134.832 152.032 133.001 152.791 131.651 154.141C130.301 155.491 129.542 157.323 129.542 159.232V195.214C129.542 197.124 130.301 198.955 131.651 200.306C133.001 201.656 134.832 202.414 136.742 202.414H345.455C347.365 202.414 349.196 201.656 350.546 200.306C351.896 198.955 352.655 197.124 352.655 195.214V159.229C352.654 157.32 351.895 155.49 350.545 154.14C349.195 152.791 347.364 152.032 345.455 152.032ZM338.255 188.017H143.939V166.426H338.258L338.255 188.017ZM467.8 168.851C469.71 168.851 471.541 168.093 472.891 166.743C474.241 165.392 475 163.561 475 161.651V132.866C474.994 127.142 472.717 121.654 468.669 117.606C464.621 113.559 459.133 111.282 453.409 111.275H426.855L419.61 85.1684C419.097 83.3344 417.879 81.7779 416.223 80.8385C414.566 79.8992 412.605 79.6532 410.768 80.1544C408.947 80.6655 407.043 80.8116 405.166 80.5842C403.288 80.3567 401.474 79.7602 399.828 78.8291C398.182 77.8979 396.737 76.6504 395.575 75.1584C394.412 73.6664 393.557 71.9593 393.057 70.1354C392.543 68.3256 392.396 66.4312 392.625 64.5637C392.855 62.6963 393.456 60.8937 394.393 59.2624C395.315 57.6062 396.558 56.1498 398.047 54.9777C399.537 53.8055 401.245 52.941 403.072 52.4344C403.994 52.1791 404.857 51.7427 405.609 51.1506C406.361 50.5586 406.987 49.8228 407.452 48.986C407.916 48.1493 408.21 47.2285 408.315 46.2772C408.42 45.3259 408.334 44.3633 408.063 43.4454L399.748 15.4454C398.927 12.6805 397.56 10.1081 395.728 7.88015C393.896 5.65219 391.636 3.81377 389.082 2.4734C386.529 1.13303 383.732 0.317869 380.858 0.076038C377.984 -0.165793 375.09 0.170604 372.348 1.06537L34.837 111.275H21.591C15.8667 111.282 10.3786 113.559 6.33087 117.606C2.28315 121.654 0.00635244 127.142 0 132.866V161.654C0 163.564 0.758569 165.395 2.10883 166.746C3.45909 168.096 5.29044 168.854 7.2 168.854C10.9966 168.886 14.627 170.416 17.3004 173.112C19.9739 175.808 21.474 179.451 21.474 183.248C21.474 187.045 19.9739 190.688 17.3004 193.383C14.627 196.079 10.9966 197.61 7.2 197.641C5.29044 197.641 3.45909 198.4 2.10883 199.75C0.758569 201.1 0 202.932 0 204.841V262.417C0 264.327 0.758569 266.158 2.10883 267.509C3.45909 268.859 5.29044 269.617 7.2 269.617C11.0175 269.617 14.6787 271.134 17.3781 273.833C20.0775 276.533 21.594 280.194 21.594 284.011C21.594 287.829 20.0775 291.49 17.3781 294.189C14.6787 296.889 11.0175 298.405 7.2 298.405C5.29044 298.405 3.45909 299.164 2.10883 300.514C0.758569 301.864 0 303.696 0 305.605V334.393C0.00635244 340.118 2.28315 345.606 6.33087 349.654C10.3786 353.701 15.8667 355.978 21.591 355.984H34.837L372.211 466.137C374.969 467.037 377.88 467.372 380.771 467.122C383.661 466.873 386.472 466.043 389.035 464.683C391.598 463.323 393.86 461.461 395.688 459.208C397.515 456.954 398.87 454.356 399.671 451.567L407.43 424.529C407.693 423.615 407.771 422.658 407.662 421.713C407.552 420.768 407.256 419.854 406.791 419.024C406.326 418.194 405.701 417.464 404.953 416.877C404.204 416.29 403.347 415.857 402.43 415.603C399.706 414.829 397.27 413.269 395.427 411.119C393.585 408.968 392.417 406.322 392.069 403.511C391.722 400.7 392.211 397.85 393.475 395.315C394.739 392.781 396.722 390.675 399.176 389.261C402.523 387.37 406.48 386.877 410.189 387.887C412.025 388.395 413.987 388.154 415.644 387.216C417.302 386.279 418.52 384.722 419.031 382.887L426.557 355.972H453.413C459.137 355.965 464.624 353.688 468.671 349.64C472.717 345.592 474.994 340.105 475 334.381V305.593C475 303.684 474.241 301.852 472.891 300.502C471.541 299.152 469.71 298.393 467.8 298.393C463.982 298.393 460.321 296.877 457.622 294.177C454.923 291.478 453.406 287.817 453.406 283.999C453.406 280.182 454.923 276.521 457.622 273.821C460.321 271.122 463.982 269.605 467.8 269.605C469.71 269.605 471.541 268.847 472.891 267.497C474.241 266.146 475 264.315 475 262.405V204.835C475 202.926 474.241 201.094 472.891 199.744C471.541 198.394 469.71 197.635 467.8 197.635C464.003 197.604 460.373 196.073 457.7 193.377C455.026 190.682 453.526 187.039 453.526 183.242C453.526 179.445 455.026 175.802 457.7 173.106C460.373 170.41 464.003 168.88 467.8 168.848V168.851ZM376.812 14.7514C377.726 14.452 378.69 14.339 379.648 14.4191C380.607 14.4992 381.539 14.7708 382.39 15.2177C383.242 15.6647 383.995 16.2779 384.605 17.021C385.215 17.7642 385.669 18.6223 385.942 19.5444L392.436 41.4094C388.033 43.984 384.392 47.6816 381.886 52.1244C380.004 55.3994 378.795 59.0175 378.33 62.7663C377.865 66.515 378.154 70.3189 379.18 73.9544C380.182 77.5992 381.892 81.0108 384.214 83.9938C386.535 86.9768 389.423 89.4726 392.71 91.3384C397.181 93.9013 402.268 95.1941 407.42 95.0774L411.911 111.277H81.212L376.812 14.7514ZM406.851 372.979C401.69 372.908 396.601 374.199 392.098 376.722C387.682 379.214 384.004 382.83 381.437 387.202C378.869 391.574 377.503 396.547 377.478 401.617C377.452 406.687 378.767 411.674 381.291 416.072C383.814 420.469 387.455 424.122 391.845 426.658L385.836 447.595C385.569 448.525 385.117 449.392 384.508 450.144C383.898 450.895 383.144 451.516 382.289 451.97C381.434 452.423 380.497 452.699 379.533 452.782C378.569 452.865 377.598 452.753 376.678 452.452L81.212 355.972H411.605L406.851 372.979ZM447.451 203.59C451.078 207.238 455.62 209.842 460.601 211.128V256.116C454.427 257.722 448.96 261.33 445.058 266.377C441.156 271.423 439.039 277.622 439.039 284.001C439.039 290.381 441.156 296.579 445.058 301.626C448.96 306.672 454.427 310.281 460.601 311.886V334.38C460.601 336.29 459.842 338.121 458.492 339.472C457.142 340.822 455.311 341.58 453.401 341.58H395.833C395.779 339.708 394.997 337.93 393.653 336.624C392.309 335.319 390.51 334.588 388.636 334.588C386.762 334.588 384.963 335.319 383.619 336.624C382.275 337.93 381.493 339.708 381.439 341.58H93.561C93.5069 339.708 92.725 337.93 91.3812 336.624C90.0374 335.319 88.2376 334.588 86.364 334.588C84.4904 334.588 82.6906 335.319 81.3468 336.624C80.003 337.93 79.2211 339.708 79.167 341.58H21.591C20.6455 341.58 19.7092 341.394 18.8357 341.032C17.9621 340.67 17.1684 340.14 16.4998 339.472C15.8313 338.803 15.3009 338.009 14.9391 337.136C14.5772 336.262 14.391 335.326 14.391 334.38V311.887C20.565 310.282 26.0317 306.673 29.934 301.627C33.8362 296.58 35.9533 290.382 35.9533 284.002C35.9533 277.623 33.8362 271.424 29.934 266.378C26.0317 261.331 20.565 257.723 14.391 256.117V211.129C20.5652 209.525 26.0322 205.916 29.9346 200.87C33.8371 195.823 35.9544 189.624 35.9544 183.245C35.9544 176.866 33.8371 170.667 29.9346 165.62C26.0322 160.574 20.5652 156.965 14.391 155.36V132.866C14.391 131.921 14.5772 130.985 14.9391 130.111C15.3009 129.238 15.8313 128.444 16.4998 127.775C17.1684 127.107 17.9621 126.576 18.8357 126.214C19.7092 125.853 20.6455 125.666 21.591 125.666H79.167C79.2211 127.539 80.003 129.317 81.3468 130.623C82.6906 131.928 84.4904 132.659 86.364 132.659C88.2376 132.659 90.0374 131.928 91.3812 130.623C92.725 129.317 93.5069 127.539 93.561 125.666H381.439C381.493 127.539 382.275 129.317 383.619 130.623C384.963 131.928 386.762 132.659 388.636 132.659C390.51 132.659 392.309 131.928 393.653 130.623C394.997 129.317 395.779 127.539 395.833 125.666H453.409C455.319 125.666 457.15 126.425 458.5 127.775C459.85 129.125 460.609 130.957 460.609 132.866V155.36C455.694 156.628 451.201 159.174 447.587 162.739C443.974 166.304 441.367 170.761 440.031 175.658C438.696 180.556 438.68 185.719 439.984 190.625C441.289 195.53 443.868 200.004 447.459 203.591L447.451 203.59ZM351.47 284.004C351.47 285.914 350.711 287.745 349.361 289.096C348.011 290.446 346.18 291.204 344.27 291.204H136.727C135.764 291.232 134.806 291.067 133.909 290.717C133.011 290.368 132.193 289.843 131.502 289.171C130.811 288.5 130.262 287.698 129.887 286.811C129.512 285.924 129.319 284.97 129.319 284.007C129.319 283.044 129.512 282.091 129.887 281.204C130.262 280.317 130.811 279.514 131.502 278.843C132.193 278.172 133.011 277.647 133.909 277.297C134.806 276.948 135.764 276.783 136.727 276.81H344.273C346.181 276.811 348.011 277.569 349.36 278.918C350.71 280.267 351.468 282.096 351.47 284.004ZM349.232 312.792C349.232 314.702 348.473 316.533 347.123 317.884C345.773 319.234 343.942 319.992 342.032 319.992H137.965C137.002 320.02 136.044 319.855 135.147 319.505C134.249 319.156 133.431 318.631 132.74 317.96C132.049 317.288 131.5 316.486 131.125 315.599C130.75 314.712 130.557 313.758 130.557 312.795C130.557 311.832 130.75 310.879 131.125 309.992C131.5 309.105 132.049 308.302 132.74 307.631C133.431 306.96 134.249 306.435 135.147 306.085C136.044 305.736 137.002 305.571 137.965 305.598H342.035C343.943 305.599 345.772 306.357 347.121 307.705C348.471 309.054 349.23 310.883 349.232 312.79V312.792ZM351.47 226.004C351.47 227.914 350.711 229.745 349.361 231.096C348.011 232.446 346.18 233.204 344.27 233.204H136.727C134.854 233.15 133.076 232.368 131.771 231.025C130.465 229.681 129.735 227.881 129.735 226.007C129.735 224.134 130.465 222.334 131.771 220.99C133.076 219.646 134.854 218.864 136.727 218.81H344.273C346.181 218.811 348.011 219.569 349.36 220.918C350.71 222.267 351.468 224.096 351.47 226.004ZM351.232 254.792C351.232 256.702 350.473 258.533 349.123 259.884C347.773 261.234 345.942 261.992 344.032 261.992H137.965C137.002 262.02 136.044 261.855 135.147 261.505C134.249 261.156 133.431 260.631 132.74 259.96C132.049 259.288 131.5 258.486 131.125 257.599C130.75 256.712 130.557 255.758 130.557 254.795C130.557 253.832 130.75 252.879 131.125 251.992C131.5 251.105 132.049 250.302 132.74 249.631C133.431 248.96 134.249 248.435 135.147 248.085C136.044 247.736 137.002 247.571 137.965 247.598H344.035C345.943 247.599 347.772 248.357 349.121 249.705C350.471 251.054 351.23 252.883 351.232 254.79V254.792ZM93.561 154.436V170.27C93.5069 172.143 92.725 173.921 91.3812 175.227C90.0374 176.532 88.2376 177.263 86.364 177.263C84.4904 177.263 82.6906 176.532 81.3468 175.227C80.003 173.921 79.2211 172.143 79.167 170.27V154.436C79.2211 152.564 80.003 150.786 81.3468 149.48C82.6906 148.175 84.4904 147.444 86.364 147.444C88.2376 147.444 90.0374 148.175 91.3812 149.48C92.725 150.786 93.5069 152.564 93.561 154.436ZM93.561 201.936V217.768C93.5069 219.641 92.725 221.419 91.3812 222.725C90.0374 224.03 88.2376 224.761 86.364 224.761C84.4904 224.761 82.6906 224.03 81.3468 222.725C80.003 221.419 79.2211 219.641 79.167 217.768V201.936C79.2211 200.064 80.003 198.286 81.3468 196.98C82.6906 195.675 84.4904 194.944 86.364 194.944C88.2376 194.944 90.0374 195.675 91.3812 196.98C92.725 198.286 93.5069 200.064 93.561 201.936ZM93.561 249.436V265.267C93.5069 267.14 92.725 268.918 91.3812 270.224C90.0374 271.529 88.2376 272.26 86.364 272.26C84.4904 272.26 82.6906 271.529 81.3468 270.224C80.003 268.918 79.2211 267.14 79.167 265.267V249.437C79.2211 247.565 80.003 245.787 81.3468 244.481C82.6906 243.176 84.4904 242.445 86.364 242.445C88.2376 242.445 90.0374 243.176 91.3812 244.481C92.725 245.787 93.5069 247.565 93.561 249.437V249.436ZM93.561 296.936V312.771C93.5069 314.644 92.725 316.422 91.3812 317.728C90.0374 319.033 88.2376 319.764 86.364 319.764C84.4904 319.764 82.6906 319.033 81.3468 317.728C80.003 316.422 79.2211 314.644 79.167 312.771V296.934C79.2211 295.062 80.003 293.284 81.3468 291.978C82.6906 290.673 84.4904 289.942 86.364 289.942C88.2376 289.942 90.0374 290.673 91.3812 291.978C92.725 293.284 93.5069 295.062 93.561 296.934V296.936ZM395.833 154.436V170.27C395.779 172.143 394.997 173.921 393.653 175.227C392.309 176.532 390.51 177.263 388.636 177.263C386.762 177.263 384.963 176.532 383.619 175.227C382.275 173.921 381.493 172.143 381.439 170.27V154.436C381.493 152.564 382.275 150.786 383.619 149.48C384.963 148.175 386.762 147.444 388.636 147.444C390.51 147.444 392.309 148.175 393.653 149.48C394.997 150.786 395.779 152.564 395.833 154.436ZM395.833 201.936V217.768C395.779 219.641 394.997 221.419 393.653 222.725C392.309 224.03 390.51 224.761 388.636 224.761C386.762 224.761 384.963 224.03 383.619 222.725C382.275 221.419 381.493 219.641 381.439 217.768V201.936C381.493 200.064 382.275 198.286 383.619 196.98C384.963 195.675 386.762 194.944 388.636 194.944C390.51 194.944 392.309 195.675 393.653 196.98C394.997 198.286 395.779 200.064 395.833 201.936ZM395.833 249.436V265.267C395.779 267.14 394.997 268.918 393.653 270.224C392.309 271.529 390.51 272.26 388.636 272.26C386.762 272.26 384.963 271.529 383.619 270.224C382.275 268.918 381.493 267.14 381.439 265.267V249.437C381.493 247.565 382.275 245.787 383.619 244.481C384.963 243.176 386.762 242.445 388.636 242.445C390.51 242.445 392.309 243.176 393.653 244.481C394.997 245.787 395.779 247.565 395.833 249.437V249.436ZM395.833 296.936V312.771C395.779 314.644 394.997 316.422 393.653 317.728C392.309 319.033 390.51 319.764 388.636 319.764C386.762 319.764 384.963 319.033 383.619 317.728C382.275 316.422 381.493 314.644 381.439 312.771V296.934C381.493 295.062 382.275 293.284 383.619 291.978C384.963 290.673 386.762 289.942 388.636 289.942C390.51 289.942 392.309 290.673 393.653 291.978C394.997 293.284 395.779 295.062 395.833 296.934V296.936Z"/></svg>
+      </div>
+      <div class="mode-text">
+        <div class="mode-name" data-en="Single Draft" data-ru="1 из 3">Single Draft</div>
+        <p class="mode-desc" data-en="Three random films, poster and title only. Enough to choose, not enough to judge. Pick one and go." data-ru="Три случайных фильма. Только постер и название. Достаточно, чтобы выбрать, недостаточно, чтобы судить.">Three random films, poster and title only. Enough to choose, not enough to judge. Pick one and go.</p>
+      </div>
+    </button>
+  </div>
+</main>
+
+<div class="why-overlay" id="whyOverlay">
+  <div class="why-content">
+    <button class="why-close" onclick="closeWhy()">✕</button>
+    <div class="why-eyebrow" data-en="— Philosophy" data-ru="— Зачем">— Philosophy</div>
+    <h2 class="why-heading">WHY THIS<br><em>EXISTS.</em></h2>
+    <div class="why-section">
+      <div class="why-section-title" data-en="The Problem" data-ru="Проблема">The Problem</div>
+      <p data-en="Every film arrives pre-judged. Ratings, trailers, reviews — by the time you hit play, you already know what to think. Someone calls it a masterpiece and you spend two hours waiting for it to appear. Someone calls it unwatchable and you spend two hours collecting evidence. The film never gets a fair hearing." data-ru="Каждый фильм приходит к тебе уже с готовым вердиктом. Рейтинги, трейлеры, рецензии — к моменту, как ты его включаешь, ты уже знаешь, что думать. Кто-то назвал его шедевром, и ты два часа ждёшь, когда же он появится. Кто-то сказал, что смотреть невозможно, и ты два часа собираешь доказательства. Фильм так и не получает честного шанса.">Every film arrives pre-judged. Ratings, trailers, reviews — by the time you hit play, you already know what to think. Someone calls it a masterpiece and you spend two hours waiting for it to appear. Someone calls it unwatchable and you spend two hours collecting evidence. The film never gets a fair hearing.</p>
+      <p data-en="Watch blind and something shifts. No rating, no trailer, no context. Just the film and your own uncontaminated reaction. Then find out what the world thought afterwards. You'll disagree more than you expect. That's the point." data-ru="Смотришь вслепую — и что-то меняется. Никаких рейтингов, трейлеров, контекста. Только фильм и твоя собственная, незамутнённая реакция. А что думает остальной мир — узнаешь потом. Ты будешь не соглашаться чаще, чем ожидаешь. В этом и смысл.">Watch blind and something shifts. No rating, no trailer, no context. Just the film and your own uncontaminated reaction. Then find out what the world thought afterwards. You'll disagree more than you expect. That's the point.</p>
+    </div>
+    <div class="why-section">
+      <div class="why-section-title" data-en="The Philosophy" data-ru="Философия">The Philosophy</div>
+      <p data-en="Quentin Tarantino didn't develop his taste by watching great films. He developed it by watching everything, including the bad ones. Working in a video store, he had no algorithm steering him toward quality. He just watched what was there. That indiscriminate exposure is a large part of what made him one of the most distinctive filmmakers alive." data-ru="Квентин Тарантино развил свой вкус не на великих фильмах. Он смотрел всё подряд, включая плохое. Работая в видеопрокате, он не имел никакого алгоритма, который направлял бы его к качественному кино. Он просто смотрел всё, что было под рукой. Это и сформировало одного из самых самобытных режиссёров в истории кино.">Quentin Tarantino didn't develop his taste by watching great films. He developed it by watching everything, including the bad ones. Working in a video store, he had no algorithm steering him toward quality. He just watched what was there. That indiscriminate exposure is a large part of what made him one of the most distinctive filmmakers alive.</p>
+      <p data-en="Bad films teach you things good films can't. When something doesn't work, the mechanics are visible. You see the seams. You notice the moment a scene loses tension, or why a character never earns your sympathy. Greatness tends to hide its own construction. Failure puts it on display." data-ru="Плохие фильмы учат тому, чему хорошие научить не могут. Когда что-то не работает, механика видна. Замечаешь швы. Видишь момент, где сцена теряет напряжение, или понимаешь, почему персонаж так и не стал живым. Великое кино умеет прятать своё устройство. Провал выкладывает его напоказ.">Bad films teach you things good films can't. When something doesn't work, the mechanics are visible. You see the seams. You notice the moment a scene loses tension, or why a character never earns your sympathy. Greatness tends to hide its own construction. Failure puts it on display.</p>
+      <p data-en="CinemaRoulette isn't built for people who want to watch the best. It's for people who want to actually develop taste: watching outside your comfort zone, sitting with films you wouldn't have chosen, and forming your own opinion before the internet forms it for you." data-ru="CinemaRoulette создан не для тех, кто хочет смотреть лучшее. Он для тех, кто хочет по-настоящему развить вкус: смотреть за пределами привычного, сидеть с фильмами, которые ты бы никогда не выбрал сам, и составлять своё мнение раньше, чем это сделает интернет.">CinemaRoulette isn't built for people who want to watch the best. It's for people who want to actually develop taste: watching outside your comfort zone, sitting with films you wouldn't have chosen, and forming your own opinion before the internet forms it for you.</p>
+    </div>
+  </div>
+  </div>
+</div>
+
+<div class="panel-overlay" id="mysteryPanel">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title" data-en="Mystery Movie" data-ru="Тайный Фильм">Mystery Movie</div>
+      <button class="panel-close" onclick="closePanel('mysteryPanel')">✕</button>
+    </div>
+    <div class="panel-body" id="mysteryBody">
+      <div class="loading">
+        <svg class="loading-reel"><use href="#icon-reel"></use></svg>
+        <div class="loading-text" data-en="Loading your fate..." data-ru="Загружаем судьбу...">Loading your fate...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel-overlay" id="draftPanel">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title" data-en="Single Draft" data-ru="1 из 3">Single Draft</div>
+      <button class="panel-close" onclick="closePanel('draftPanel')">✕</button>
+    </div>
+    <div class="panel-body" id="draftBody">
+      <div class="loading">
+        <svg class="loading-reel"><use href="#icon-reel"></use></svg>
+        <div class="loading-text" data-en="Shuffling the deck..." data-ru="Тасуем колоду...">Shuffling the deck...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel-overlay" id="roulettePanel">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title" data-en="Cinema Roulette" data-ru="Кино-Рулетка">Cinema Roulette</div>
+      <button class="panel-close" onclick="closePanel('roulettePanel')">✕</button>
+    </div>
+    <div class="panel-body" id="rouletteBody">
+      <div class="loading">
+        <svg class="loading-reel"><use href="#icon-reel"></use></svg>
+        <div class="loading-text" data-en="Loading the chamber..." data-ru="Заряжаем барабан...">Loading the chamber...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="player-overlay" id="playerOverlay">
+  <div class="player-topbar">
+    <button class="player-back" onclick="closePlayer()">← <span data-en="Back" data-ru="Назад">Back</span></button>
+    <div class="player-movie-title" id="playerTitle"></div>
+    <div style="width:80px"></div>
+  </div>
+  <div class="player-frame-wrap" id="playerFrameWrap">
+    <div class="resolving">
+      <svg class="loading-reel"><use href="#icon-reel"></use></svg>
+      <div class="resolving-text" data-en="Finding your stream..." data-ru="Ищем поток...">Finding your stream...</div>
+    </div>
+  </div>
+</div>
+
+<div class="key-overlay" id="keyOverlay">
+  <div class="key-panel">
+    <div class="key-panel-header">
+      <div class="key-panel-title" data-en="API KEY SETUP" data-ru="НАСТРОЙКА API КЛЮЧА">API KEY SETUP</div>
+      <button class="panel-close" onclick="closeKeyOverlay()">✕</button>
+    </div>
+    <div class="key-panel-body">
+      <div class="key-step">
+        <div class="key-step-num">01</div>
+        <div class="key-step-text" data-en='Go to <a href="https://kinopoiskapiunofficial.tech" target="_blank">kinopoiskapiunofficial.tech</a> and create a free account.' data-ru='Перейдите на <a href="https://kinopoiskapiunofficial.tech" target="_blank">kinopoiskapiunofficial.tech</a> и создайте бесплатный аккаунт.'>Go to <a href="https://kinopoiskapiunofficial.tech" target="_blank">kinopoiskapiunofficial.tech</a> and create a free account.</div>
+      </div>
+      <div class="key-step">
+        <div class="key-step-num">02</div>
+        <div class="key-step-text" data-en="After registering, go to your profile. Your API key will be shown there." data-ru="После регистрации перейдите в профиль. Там будет ваш API ключ.">After registering, go to your profile. Your API key will be shown there.</div>
+      </div>
+      <div class="key-step">
+        <div class="key-step-num">03</div>
+        <div class="key-step-text" data-en="Paste your key below. It will be saved locally next to the script and reloaded automatically on next launch." data-ru="Вставьте ключ ниже. Он сохранится локально рядом со скриптом и будет загружаться автоматически при следующем запуске.">Paste your key below. It will be saved locally next to the script and reloaded automatically on next launch.</div>
+      </div>
+      <div class="key-input-row">
+        <input class="key-input" id="keyInput" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+        <button class="key-save-btn" id="keySaveBtn" onclick="saveApiKey()">SAVE</button>
+      </div>
+      <div class="key-status-msg" id="keyStatusMsg"></div>
+
+      <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border)">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--muted);margin-bottom:16px">
+          TMDB — POSTER FALLBACK <span style="font-size:11px;letter-spacing:1px;color:var(--border)">(OPTIONAL)</span>
+        </div>
+        <div style="font-size:12px;color:#666;line-height:1.7;margin-bottom:16px">
+          When Kinopoisk posters fail to load, TMDb is used as a fallback. Free key at
+          <a href="https://www.themoviedb.org/settings/api" target="_blank" style="color:var(--accent);text-decoration:none">themoviedb.org/settings/api</a>
+          — takes 30 seconds.
+        </div>
+        <div class="key-input-row">
+          <input class="key-input" id="tmdbInput" type="text" placeholder="TMDb API key (v3 auth)" autocomplete="off" spellcheck="false">
+          <button class="key-save-btn" id="tmdbSaveBtn" onclick="saveTmdbKey()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">SAVE</button>
+        </div>
+        <div class="key-status-msg" id="tmdbStatusMsg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:7777';
+  const REEL_SVG = '<svg class="loading-reel"><use href="#icon-reel"></use></svg>';
+
+  function openWhy() {
+    document.getElementById('whyOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeWhy() {
+    document.getElementById('whyOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  let _hasApiKey = false;
+  let _hasTmdbKey = false;
+
+  async function fetchStats() {
+    try {
+      const res = await fetch(`${API}/api/stats`);
+      const data = await res.json();
+      const pct = Math.min(100, (data.used / data.limit) * 100);
+      document.getElementById('counterText').textContent = `${data.used} / ${data.limit}`;
+      document.getElementById('resetText').textContent = `resets in ${data.resets_in}`;
+      const bar = document.getElementById('counterBar');
+      bar.style.width = pct + '%';
+      bar.className = 'counter-bar' + (pct >= 90 ? ' danger' : pct >= 70 ? ' warn' : '');
+      _hasApiKey = !!data.has_key;
+      _hasTmdbKey = !!data.has_tmdb;
+      updateKeyBtn();
+    } catch(e) {}
+  }
+
+  function updateKeyBtn() {
+    const btn = document.getElementById('keyBtn');
+    if (_hasApiKey) {
+      btn.className = 'key-btn key-set';
+      btn.title = t('API key is set — click to change', 'API ключ установлен — нажмите чтобы изменить');
+    } else {
+      btn.className = 'key-btn key-missing';
+      btn.title = t('No API key — click to set up', 'API ключ не задан — нажмите чтобы настроить');
+    }
+  }
+
+  function openKeyOverlay() {
+    document.getElementById('keyOverlay').classList.add('active');
+    document.getElementById('keyStatusMsg').textContent = '';
+    document.getElementById('keyStatusMsg').className = 'key-status-msg';
+    document.getElementById('keyInput').value = '';
+    document.getElementById('keyInput').className = 'key-input';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('keyInput').focus(), 50);
+  }
+
+  function closeKeyOverlay() {
+    document.getElementById('keyOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  async function saveApiKey() {
+    const input = document.getElementById('keyInput');
+    const key = input.value.trim();
+    const msg = document.getElementById('keyStatusMsg');
+    const btn = document.getElementById('keySaveBtn');
+
+    if (!key) {
+      input.className = 'key-input key-error';
+      msg.className = 'key-status-msg err';
+      msg.textContent = t('Please enter a key.', 'Введите ключ.');
+      return;
+    }
+
+    btn.disabled = true;
+    msg.className = 'key-status-msg';
+    msg.textContent = t('Saving…', 'Сохраняем…');
+
+    try {
+      const res = await fetch(`${API}/api/key`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key})
+      });
+      const data = await res.json();
+      if (data.ok) {
+        _hasApiKey = true;
+        updateKeyBtn();
+        msg.className = 'key-status-msg ok';
+        msg.textContent = t('Key saved. Ready to use.', 'Ключ сохранён. Можно пользоваться.');
+        input.className = 'key-input';
+        setTimeout(() => closeKeyOverlay(), 1200);
+      } else {
+        throw new Error(data.error || 'Failed');
+      }
+    } catch(e) {
+      msg.className = 'key-status-msg err';
+      msg.textContent = t('Failed to save. Is the server running?', 'Не удалось сохранить. Сервер запущен?');
+    }
+    btn.disabled = false;
+  }
+
+  async function saveTmdbKey() {
+    const input = document.getElementById('tmdbInput');
+    const key = input.value.trim();
+    const msg = document.getElementById('tmdbStatusMsg');
+    const btn = document.getElementById('tmdbSaveBtn');
+    if (!key) {
+      input.className = 'key-input key-error';
+      msg.className = 'key-status-msg err';
+      msg.textContent = t('Please enter a key.', 'Введите ключ.');
+      return;
+    }
+    btn.disabled = true;
+    msg.className = 'key-status-msg';
+    msg.textContent = t('Saving…', 'Сохраняем…');
+    try {
+      const res = await fetch(`${API}/api/tmdb-key`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key})
+      });
+      const data = await res.json();
+      if (data.ok) {
+        _hasTmdbKey = true;
+        msg.className = 'key-status-msg ok';
+        msg.textContent = t('TMDb key saved.', 'Ключ TMDb сохранён.');
+        input.className = 'key-input';
+        input.value = '';
+      } else throw new Error(data.error || 'Failed');
+    } catch(e) {
+      msg.className = 'key-status-msg err';
+      msg.textContent = t('Failed to save.', 'Не удалось сохранить.');
+    }
+    btn.disabled = false;
+  }
+
+  function requireApiKey() {
+    if (!_hasApiKey) {
+      openKeyOverlay();
+      return false;
+    }
+    return true;
+  }
+
+  fetchStats();
+  setInterval(fetchStats, 30000);
+  let lang = 'en';
+  let rouletteFilms = [];
+  let rouletteIndex = 0;
+  let rouletteSkipped = [];
+  let isSpinning = false;
+
+  function setLang(l) {
+    lang = l;
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.lang-btn[onclick="setLang('${l}')"]`).classList.add('active');
+    document.querySelectorAll('[data-en]').forEach(el => {
+      el.textContent = el.getAttribute(`data-${l}`);
+    });
+    // Hero title needs innerHTML (contains <br> and <em>)
+    const heroTitle = document.querySelector('.hero-title');
+    if (heroTitle) {
+      heroTitle.innerHTML = l === 'ru'
+        ? 'ИССЛЕДУЙ<br>КИНО<br><em>ВСЛЕПУЮ.</em>'
+        : 'DISCOVER<br>CINEMA<br><em>BLINDLY.</em>';
+    }
+    // Cyrillic font
+    document.body.classList.toggle('lang-ru', l === 'ru');
+  }
+
+  function t(en, ru) { return lang === 'ru' ? ru : en; }
+
+  function closePanel(id) {
+    document.getElementById(id).classList.remove('active');
+  }
+
+  let _lastPanel = null;
+
+  function closePlayer() {
+    document.getElementById('playerOverlay').classList.remove('active');
+    if (_lastPanel) {
+      document.getElementById(_lastPanel).classList.add('active');
+      _lastPanel = null;
+    }
+    document.getElementById('playerFrameWrap').innerHTML = `
+      <div class="resolving">
+        ${REEL_SVG}
+        <div class="resolving-text">${t('Finding your stream...', 'Ищем поток...')}</div>
+      </div>`;
+  }
+
+  function watchFilm(filmId, titleEn, titleRu, hideTitle, fromPanel) {
+    const title = lang === 'ru' ? (titleRu || titleEn) : (titleEn || titleRu);
+    document.getElementById('playerTitle').textContent = hideTitle ? '?' : title;
+    _lastPanel = fromPanel || null;
+    document.getElementById('playerOverlay').classList.add('active');
+
+    const url = `https://fbfree.cfd/film/${filmId}/`;
+    const wrap = document.getElementById('playerFrameWrap');
+
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.allow = 'autoplay; fullscreen; encrypted-media';
+    iframe.allowFullscreen = true;
+    iframe.style.cssText = 'width:100%;height:100%;border:none;';
+    wrap.innerHTML = '';
+    wrap.appendChild(iframe);
+  }
+
+  // MYSTERY MOVIE
+  async function openMystery() {
+    if (!requireApiKey()) return;
+    fetchStats();
+    const panel = document.getElementById('mysteryPanel');
+    const body = document.getElementById('mysteryBody');
+    panel.classList.add('active');
+
+    body.innerHTML = loadingHTML(t('Loading your fate...', 'Загружаем судьбу...'));
+
+    try {
+      const res = await fetch(`${API}/api/mystery`);
+      const film = await res.json();
+
+      if (film.error) throw new Error(film.error);
+
+      body.innerHTML = `
+        <div class="mystery-reveal">
+          <div class="mystery-duration">~${film.genres && film.genres.length ? '???' : '???'}</div>
+          <div class="mystery-duration-label">
+            ${t('A film has been chosen for you', 'Фильм выбран для вас')}
+          </div>
+          <p class="mystery-hint">
+            ${t('Title, year, genre — all hidden. Just press play.', 'Название, год, жанр — всё скрыто. Просто нажми play.')}
+          </p>
+          <button class="btn btn-primary" onclick="watchFilm(${film.id}, '${esc(film.title_en)}', '${esc(film.title_ru)}', true, 'mysteryPanel')">
+            ▶ ${t('Play', 'Смотреть')}
+          </button>
+        </div>`;
+    } catch (e) {
+      body.innerHTML = errorHTML(() => openMystery());
+    }
+  }
+
+  // SINGLE DRAFT
+  let draftFilters = { ratingMin: 1, ratingMax: 10, yearMin: 1900, yearMax: 2026, excludeCountries: [], excludeGenres: [], excludeSequels: false };
+  let lbCsvData = null, lbCsvName = null;
+  try { lbCsvData = localStorage.getItem('lb_csv_data'); lbCsvName = localStorage.getItem('lb_csv_name'); } catch(e) {}
+
+  const GENRES = [
+    {en:'Horror',    ru:'Ужасы',          kp:'ужасы'},
+    {en:'Thriller',  ru:'Триллер',         kp:'триллер'},
+    {en:'Action',    ru:'Боевик',          kp:'боевик'},
+    {en:'Comedy',    ru:'Комедия',         kp:'комедия'},
+    {en:'Romance',   ru:'Мелодрама',       kp:'мелодрама'},
+    {en:'Animation', ru:'Мультфильм',      kp:'мультфильм'},
+    {en:'Documentary',ru:'Документальный', kp:'документальный'},
+    {en:'Sci-Fi',    ru:'Фантастика',      kp:'фантастика'},
+    {en:'Fantasy',   ru:'Фэнтези',         kp:'фэнтези'},
+    {en:'Crime',     ru:'Криминал',        kp:'криминал'},
+    {en:'Western',   ru:'Вестерн',         kp:'вестерн'},
+    {en:'War',       ru:'Военный',         kp:'военный'},
+    {en:'Biography', ru:'Биография',       kp:'биография'},
+    {en:'History',   ru:'Исторический',    kp:'история'},
+    {en:'Musical',   ru:'Мюзикл',          kp:'мюзыкальный'},
+    {en:'Sport',     ru:'Спорт',           kp:'спорт'},
+  ];
+
+  let _filterTab = 'random';
+
+  function showDraftFilters(tab) {
+    if (!requireApiKey()) return;
+    if (tab) _filterTab = tab;
+    document.getElementById('draftPanel').classList.add('active');
+    const body = document.getElementById('draftBody');
+    const f = draftFilters;
+
+    const GENRE_GROUPS = [
+      { label: t('Dark', 'Тёмные'),   genres: ['ужасы','триллер','криминал'] },
+      { label: t('Action', 'Экшн'),   genres: ['боевик','вестерн','военный'] },
+      { label: t('Light', 'Лёгкие'),  genres: ['комедия','мелодрама','мюзыкальный'] },
+      { label: t('Imaginative', 'Фантазия'), genres: ['фантастика','фэнтези','мультфильм'] },
+      { label: t('Real', 'Реальное'), genres: ['документальный','биография','история','спорт'] },
+    ];
+
+    const genreGroupsHtml = GENRE_GROUPS.map(grp => {
+      const chips = grp.genres.map(kp => {
+        const g = GENRES.find(x => x.kp === kp);
+        if (!g) return '';
+        const lbl = lang === 'ru' ? g.ru : g.en;
+        const on = f.excludeGenres.includes(kp);
+        return `<button onclick="toggleGenre('${kp}',this)" class="chip${on ? ' on-genre' : ''}">${lbl}</button>`;
+      }).join('');
+      return `<div class="genre-group"><div class="genre-group-label">${grp.label}</div><div class="chip-grid">${chips}</div></div>`;
+    }).join('');
+
+    const COUNTRIES = ['USA','Japan','France','South Korea','India','Italy','Germany','Spain','China','Iran','Russia'];
+    const countryChips = COUNTRIES.map(c => {
+      const on = f.excludeCountries.includes(c);
+      return `<button onclick="toggleCountry('${c}',this)" class="chip${on ? ' on-country' : ''}">${c}</button>`;
+    }).join('');
+
+    const sequelsOn = f.excludeSequels;
+    const csvLbl = lbCsvName ? lbCsvName : null;
+
+    const sharedFilters = `
+      <div class="filter-section">
+        <div class="filter-label">${t('Exclude genres', 'Исключить жанры')}</div>
+        ${genreGroupsHtml}
+      </div>
+      <div class="filter-section">
+        <div class="filter-label">${t('Exclude countries', 'Исключить страны')}</div>
+        <div class="chip-grid">${countryChips}</div>
+      </div>
+      <div class="toggle-row" onclick="toggleSequels(this)">
+        <span class="toggle-label">${t('Exclude obvious sequels', 'Исключить очевидные сиквелы')}</span>
+        <div class="toggle-switch${sequelsOn ? ' on' : ''}" id="sequelsToggle"></div>
+      </div>`;
+
+    const randomPane = `
+      <div class="filter-pane${_filterTab === 'random' ? ' active' : ''}" id="paneRandom">
+        <div class="filter-section">
+          <div class="filter-label">${t('Rating', 'Рейтинг')}</div>
+          <div class="dual-range-wrap" id="ratingRangeWrap">
+            <div class="dual-range-track"></div>
+            <div class="dual-range-fill" id="ratingFill"></div>
+            <input type="range" min="1" max="10" step="0.5" value="${f.ratingMin}" id="ratingMin" oninput="updateDualRange('rating')">
+            <input type="range" min="1" max="10" step="0.5" value="${f.ratingMax}" id="ratingMax" oninput="updateDualRange('rating')">
+          </div>
+          <div class="range-vals">
+            <span class="range-val" id="ratingMinVal">${f.ratingMin}</span>
+            <span class="range-sep">TO</span>
+            <span class="range-val" id="ratingMaxVal">${f.ratingMax}</span>
+          </div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-label">${t('Year', 'Год')}</div>
+          <div class="dual-range-wrap" id="yearRangeWrap">
+            <div class="dual-range-track"></div>
+            <div class="dual-range-fill" id="yearFill"></div>
+            <input type="range" min="1900" max="2026" step="1" value="${f.yearMin}" id="yearMin" oninput="updateDualRange('year')">
+            <input type="range" min="1900" max="2026" step="1" value="${f.yearMax}" id="yearMax" oninput="updateDualRange('year')">
+          </div>
+          <div class="range-vals">
+            <span class="range-val" id="yearMinVal">${f.yearMin}</span>
+            <span class="range-sep">TO</span>
+            <span class="range-val" id="yearMaxVal">${f.yearMax}</span>
+          </div>
+        </div>
+        ${sharedFilters}
+        <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="applyDraftFilters(false)">
+          ${t('Find Films', 'Найти фильмы')}
+        </button>
+      </div>`;
+
+    const watchlistPane = `
+      <div class="filter-pane${_filterTab === 'watchlist' ? ' active' : ''}" id="paneWatchlist">
+        <div class="filter-section">
+          <div class="lb-drop${csvLbl ? ' has-file' : ''}" id="lbDropZone">
+            <div class="lb-drop-icon">${csvLbl ? '🎬' : '📂'}</div>
+            ${csvLbl
+              ? `<div class="lb-drop-label">${t('Watchlist loaded', 'Вотчлист загружен')}</div><div class="lb-drop-filename">${csvLbl}</div>`
+              : `<div class="lb-drop-label">${t('Click to select watchlist.csv', 'Нажмите чтобы выбрать watchlist.csv')}</div>`}
+            <input id="lbFileInput" type="file" accept=".csv" onchange="onLbFileChosen(this)">
+          </div>
+          <div class="lb-hint">${t('Letterboxd → Settings → Import & Export → Export Your Data → watchlist.csv', 'Letterboxd → Настройки → Экспорт данных → watchlist.csv')}</div>
+        </div>
+        ${sharedFilters}
+        <button class="btn btn-primary" style="width:100%;margin-top:8px" ${!lbCsvData ? 'disabled' : ''} onclick="applyDraftFilters(true)">
+          ${t('Draw from Watchlist', 'Выбрать из вотчлиста')}
+        </button>
+      </div>`;
+
+    body.innerHTML = `
+      <div class="filter-tabs">
+        <button class="filter-tab${_filterTab === 'random' ? ' active' : ''}" onclick="showDraftFilters('random')">${t('RANDOM', 'СЛУЧАЙНОЕ')}</button>
+        <button class="filter-tab${_filterTab === 'watchlist' ? ' active' : ''}" onclick="showDraftFilters('watchlist')">${t('WATCHLIST', 'ВОТЧЛИСТ')}</button>
+      </div>
+      ${randomPane}
+      ${watchlistPane}`;
+
+    requestAnimationFrame(() => {
+      updateDualRange('rating');
+      updateDualRange('year');
+    });
+  }
+
+  function updateDualRange(id) {
+    const minEl = document.getElementById(id + 'Min');
+    const maxEl = document.getElementById(id + 'Max');
+    const fill  = document.getElementById(id + 'Fill');
+    const minVal = document.getElementById(id + 'MinVal');
+    const maxVal = document.getElementById(id + 'MaxVal');
+    if (!minEl || !maxEl) return;
+
+    let lo = parseFloat(minEl.value);
+    let hi = parseFloat(maxEl.value);
+    if (lo > hi) { [lo, hi] = [hi, lo]; minEl.value = lo; maxEl.value = hi; }
+
+    const min = parseFloat(minEl.min), max = parseFloat(minEl.max);
+    const pLo = (lo - min) / (max - min) * 100;
+    const pHi = (hi - min) / (max - min) * 100;
+    if (fill) { fill.style.left = pLo + '%'; fill.style.width = (pHi - pLo) + '%'; }
+    if (minVal) minVal.textContent = lo;
+    if (maxVal) maxVal.textContent = hi;
+  }
+
+  function toggleSequels(row) {
+    draftFilters.excludeSequels = !draftFilters.excludeSequels;
+    const sw = document.getElementById('sequelsToggle');
+    if (sw) sw.className = 'toggle-switch' + (draftFilters.excludeSequels ? ' on' : '');
+  }
+
+  function toggleCountry(c, btn) {
+    const idx = draftFilters.excludeCountries.indexOf(c);
+    if (idx >= 0) {
+      draftFilters.excludeCountries.splice(idx, 1);
+      btn.className = 'chip';
+    } else {
+      draftFilters.excludeCountries.push(c);
+      btn.className = 'chip on-country';
+    }
+  }
+
+  function toggleGenre(g, btn) {
+    const idx = draftFilters.excludeGenres.indexOf(g);
+    if (idx >= 0) {
+      draftFilters.excludeGenres.splice(idx, 1);
+      btn.className = 'chip';
+    } else {
+      draftFilters.excludeGenres.push(g);
+      btn.className = 'chip on-genre';
+    }
+  }
+
+  function onLbFileChosen(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      lbCsvData = e.target.result;
+      lbCsvName = file.name;
+      try { localStorage.setItem('lb_csv_data', lbCsvData); } catch(ex) {}
+      try { localStorage.setItem('lb_csv_name', lbCsvName); } catch(ex) {}
+      showDraftFilters('watchlist');
+    };
+    reader.readAsText(file);
+  }
+
+  function applyDraftFilters(useWatchlist) {
+    const minEl = document.getElementById('ratingMin');
+    if (minEl) {
+      draftFilters.ratingMin = parseFloat(document.getElementById('ratingMin').value);
+      draftFilters.ratingMax = parseFloat(document.getElementById('ratingMax').value);
+      draftFilters.yearMin = parseInt(document.getElementById('yearMin').value);
+      draftFilters.yearMax = parseInt(document.getElementById('yearMax').value);
+    }
+    openDraft(false, useWatchlist);
+  }
+
+  async function openDraft(reroll = false, useWatchlist = false) {
+    fetchStats();
+    const panel = document.getElementById('draftPanel');
+    const body = document.getElementById('draftBody');
+    panel.classList.add('active');
+    const f = draftFilters;
+
+    if (useWatchlist && lbCsvData) {
+      body.innerHTML = loadingHTML(t('Reading watchlist…', 'Читаем вотчлист…'));
+      try {
+        const lines = lbCsvData.replace(/^\uFEFF/, '').split(String.fromCharCode(10)).map(l => l.replace(String.fromCharCode(13), '')).filter(l => l.trim());
+        const hdr = lines[0].toLowerCase().split(',').map(h => h.replace(/"/g,'').trim());
+        const ni = hdr.findIndex(h => h === 'name');
+        const yi = hdr.findIndex(h => h === 'year');
+        if (ni < 0) throw new Error(t('No Name column in CSV', 'Нет колонки Name'));
+        const titles = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+          const name = (cols[ni]||'').replace(/^"|"$/g,'').trim();
+          const yr   = yi >= 0 ? (cols[yi]||'').replace(/^"|"$/g,'').trim() : null;
+          if (name) titles.push({title: name, year: yr || null});
+        }
+        
+        if (!titles.length) throw new Error(t('No films in CSV', 'Фильмов нет'));
+        
+        for (let i = titles.length-1; i > 0; i--) {
+          const j = Math.floor(Math.random()*(i+1));
+          [titles[i], titles[j]] = [titles[j], titles[i]];
+        }
+        
+        body.innerHTML = loadingHTML(t('Looking up films…', 'Ищем в Кинопоиске…'));
+        const res = await fetch(`${API}/api/watchlist`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({titles: titles.slice(0, 40), excludeGenres: f.excludeGenres, excludeSequels: f.excludeSequels})
+        });
+        const films = await res.json();
+        
+        if (films.error) throw new Error(films.error);
+        if (!films.length) throw new Error(t('No matches found', 'Совпадений нет'));
+        body.innerHTML = renderDraftGrid(films, true);
+        
+      } catch(e) {
+        body.innerHTML = `<div style="text-align:center;padding:40px">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:20px">${e.message}</div>
+          <button class="btn btn-ghost" onclick="showDraftFilters()">← ${t('Back', 'Назад')}</button>
+        </div>`;
+      }
+      return;
+    }
+
+    body.innerHTML = loadingHTML(t('Shuffling the deck...', 'Тасуем колоду...'));
+
+    const params = new URLSearchParams({
+      ratingMin: f.ratingMin, ratingMax: f.ratingMax,
+      yearMin: f.yearMin, yearMax: f.yearMax,
+      excludeCountries: f.excludeCountries.join(','),
+      excludeGenres: f.excludeGenres.join(','),
+      excludeSequels: f.excludeSequels ? '1' : '0'
+    });
+
+    try {
+      const res = await fetch(`${API}/api/draft?${params}`);
+      const films = await res.json();
+      if (!Array.isArray(films) || films.length < 1) throw new Error('Not enough films');
+      body.innerHTML = renderDraftGrid(films, false);
+    } catch (e) {
+      body.innerHTML = errorHTML(() => openDraft(reroll, false));
+    }
+  }
+
+  function renderDraftGrid(films, fromWatchlist) {
+    const cards = films.map(f => {
+      const title = lang === 'ru' ? (f.title_ru || f.title_en) : (f.title_en || f.title_ru);
+      return `
+        <div class="draft-card" onclick="watchFilm(${f.id}, '${esc(f.title_en)}', '${esc(f.title_ru)}', false, 'draftPanel')">
+          <div class="draft-watch-overlay">
+            <div class="draft-watch-label">${t('WATCH', 'СМОТРЕТЬ')}</div>
+            <div class="draft-watch-sub">${t('click to commit', 'нажми чтобы смотреть')}</div>
+          </div>
+          ${f.poster
+            ? `<img class="draft-poster" src="${f.poster}" alt="" loading="lazy"
+               data-title-en="${esc(f.title_en || '')}" data-title-ru="${esc(f.title_ru || '')}" data-year="${f.year || ''}"
+               onerror="posterError(this)">`
+            : ''}
+          <div class="draft-poster-placeholder" style="${f.poster ? 'display:none' : ''}">🎬</div>
+          <div class="draft-info">
+            <div class="draft-title">${title}</div>
+            <div class="draft-year">${f.year || '—'}</div>
+          </div>
+        </div>`;
+    }).join('');
+    
+    const reroll = fromWatchlist
+      ? `<button class="btn btn-ghost" onclick="openDraft(true, true)">↺ ${t('Reroll Watchlist', 'Ещё из вотчлиста')}</button>`
+      : `<button class="btn btn-ghost" onclick="openDraft(true, false)">↺ ${t('Reroll', 'Перемешать')}</button>`;
+      
+    const filtersTab = fromWatchlist ? 'watchlist' : 'random';
+    
+    return `<div class="draft-grid">${cards}</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+        ${reroll}
+        <button class="btn btn-ghost" onclick="showDraftFilters('${filtersTab}')">⚙ ${t('Filters', 'Фильтры')}</button>
+      </div>`;
+  }
+
+  // CINEMA ROULETTE
+  async function openRoulette() {
+    if (!requireApiKey()) return;
+    fetchStats();
+    const panel = document.getElementById('roulettePanel');
+    const body = document.getElementById('rouletteBody');
+    panel.classList.add('active');
+
+    body.innerHTML = loadingHTML(t('Loading the chamber...', 'Заряжаем барабан...'));
+    rouletteSkipped = [];
+    rouletteIndex = 0;
+
+    try {
+      const res = await fetch(`${API}/api/roulette`);
+      rouletteFilms = await res.json();
+      if (!Array.isArray(rouletteFilms) || rouletteFilms.length < 6) throw new Error('Not enough films');
+      renderRoulette(body);
+    } catch (e) {
+      body.innerHTML = errorHTML(() => openRoulette());
+    }
+  }
+
+  const RSLOT_W   = 180;
+  const RSLOT_GAP = 10;
+  const RSLOT_STEP = RSLOT_W + RSLOT_GAP;
+  const R_REPEATS = 8;
+
+  function buildRouletteStrip() {
+    const N = rouletteFilms.length;
+    let html = '';
+    for (let r = 0; r < R_REPEATS; r++) {
+      for (let i = 0; i < N; i++) {
+        const f = rouletteFilms[i];
+        const globalIdx = r * N + i;
+        html += `<div class="roulette-slot" data-gi="${globalIdx}">
+          ${f && f.poster
+            ? `<img src="${f.poster}" alt="" loading="lazy"
+               data-title-en="${esc(f && f.title_en || '')}" data-title-ru="${esc(f && f.title_ru || '')}" data-year="${(f && f.year) || ''}"
+               onerror="posterError(this)">`
+            : `<div class="roulette-slot-placeholder">🎬</div>`}
+          <div class="roulette-watch-overlay">
+            <div class="roulette-overlay-label">${t('WATCH', 'СМОТРЕТЬ')}</div>
+            <div class="roulette-overlay-sub">${t('click to commit', 'нажми чтобы смотреть')}</div>
+          </div>
+        </div>`;
+      }
+    }
+    return html;
+  }
+
+  function txForSlot(gi, vpWidth) {
+    const slotCenter = gi * RSLOT_STEP + RSLOT_W / 2;
+    return vpWidth / 2 - slotCenter;
+  }
+
+  function markActiveSlot(gi, filmId, titleEn, titleRu) {
+    const strip = document.getElementById('rouletteStrip');
+    if (!strip) return;
+    strip.querySelectorAll('.roulette-slot.active').forEach(s => s.classList.remove('active'));
+    const target = strip.querySelector(`[data-gi="${gi}"]`);
+    if (!target) return;
+    target.classList.add('active');
+    target.onclick = () => watchFilm(filmId, titleEn, titleRu, false, 'roulettePanel');
+  }
+
+  function renderRoulette(body) {
+    const N = rouletteFilms.length;
+    const isLast = rouletteIndex >= N - 1;
+    const curr = rouletteFilms[rouletteIndex];
+    const filmId  = curr ? curr.id : 0;
+    const titleEn = curr ? esc(curr.title_en) : '';
+    const titleRu = curr ? esc(curr.title_ru) : '';
+
+    const dots = rouletteFilms.map((_, i) =>
+      `<div class="roulette-dot${i < rouletteIndex ? ' used' : ''}"></div>`
+    ).join('');
+
+    body.innerHTML = `
+      <div class="roulette-chambers">${dots}</div>
+      <div class="roulette-viewport" id="rouletteViewport">
+        <div class="roulette-sprocket top"></div>
+        <div class="roulette-sprocket bottom"></div>
+        <div class="roulette-selector"></div>
+        <div class="roulette-fade-left"></div>
+        <div class="roulette-fade-right"></div>
+        <div class="roulette-strip" id="rouletteStrip" style="transition:none">
+          ${buildRouletteStrip()}
+        </div>
+      </div>
+      <div class="roulette-controls">
+        <button class="roulette-spin-btn" id="rouletteSpinBtn"
+          ${isLast ? 'disabled' : ''} onclick="spinCylinder()">
+          ↻ ${t('SPIN', 'КРУТИТЬ')}
+        </button>
+      </div>`;
+
+    const startGi = N + rouletteIndex;
+    const vp = document.getElementById('rouletteViewport');
+    const strip = document.getElementById('rouletteStrip');
+    strip.style.transition = 'none';
+    strip.style.transform = `translateX(${txForSlot(startGi, vp.offsetWidth)}px)`;
+
+    markActiveSlot(startGi, filmId, titleEn, titleRu);
+  }
+
+  function spinCylinder() {
+    if (isSpinning) return;
+    if (rouletteIndex >= rouletteFilms.length - 1) return;
+
+    isSpinning = true;
+    const spinBtn = document.getElementById('rouletteSpinBtn');
+    if (spinBtn) spinBtn.disabled = true;
+
+    const N = rouletteFilms.length;
+    const nextIndex = rouletteIndex + 1;
+    const vp    = document.getElementById('rouletteViewport');
+    const strip = document.getElementById('rouletteStrip');
+
+    const startGi  = N + rouletteIndex;
+    const targetGi = N * 5 + nextIndex;
+
+    const vpWidth = vp.offsetWidth;
+    const startTx  = txForSlot(startGi,  vpWidth);
+    const targetTx = txForSlot(targetGi, vpWidth);
+
+    strip.classList.add('is-spinning');
+    strip.style.transition = 'none';
+    strip.style.transform  = `translateX(${startTx}px)`;
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      strip.style.transition = 'transform 4.5s cubic-bezier(0.12, 0.8, 0.22, 1)';
+      strip.style.transform  = `translateX(${targetTx}px)`;
+    }));
+
+    strip.addEventListener('transitionend', function onEnd() {
+      strip.removeEventListener('transitionend', onEnd);
+      strip.classList.remove('is-spinning');
+      rouletteSkipped.push(rouletteFilms[rouletteIndex]);
+      rouletteIndex++;
+      isSpinning = false;
+      renderRoulette(document.getElementById('rouletteBody'));
+    }, { once: true });
+  }
+
+  function loadingHTML(msg) {
+    return `<div class="loading">
+      ${REEL_SVG}
+      <div class="loading-text">${msg}</div>
+    </div>`;
+  }
+
+  function errorHTML(retryFn) {
+    window._retryFn = retryFn;
+    return `<div style="text-align:center;padding:40px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--film-red);margin-bottom:12px">
+        ${t('Connection Error', 'Ошибка соединения')}
+      </div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:24px">
+        ${t('Make sure the server is running at localhost:7777', 'Убедись, что сервер запущен на localhost:7777')}
+      </div>
+      <button class="btn btn-ghost" onclick="window._retryFn()">
+        ${t('Retry', 'Повторить')}
+      </button>
+    </div>`;
+  }
+
+  async function posterError(img) {
+    // Step 1: proxy failed — try TMDb
+    if (!img.dataset.tmdbTried && _hasTmdbKey) {
+      img.dataset.tmdbTried = '1';
+      try {
+        const res = await fetch(`${API}/api/tmdb-poster`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            title_en: img.dataset.titleEn || '',
+            title_ru: img.dataset.titleRu || '',
+            year: img.dataset.year || null
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) { img.src = data.url; return; }
+        }
+      } catch(e) {}
+    }
+    // Step 2: both failed — show stylised placeholder
+    const wrap = img.parentElement;
+    img.style.display = 'none';
+    // find or create placeholder
+    let ph = wrap.querySelector('.draft-poster-placeholder, .roulette-slot-placeholder');
+    if (ph) {
+      ph.style.display = 'flex';
+      ph.innerHTML = POSTER_PLACEHOLDER_SVG;
+    }
+  }
+
+  const POSTER_PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 65" style="width:36px;height:auto;fill:#2a2a2a;opacity:0.6"><path d="M12.543 65H1.26758C0.57377 64.9999 0 64.423 0 63.7256V54.1455H12.543V65ZM28.4062 64.999H15.8643V54.1455H28.4062V64.999ZM44.2705 64.999H31.7285V54.1455H44.2705V64.999ZM60.1348 64.999H47.5928V54.1455H60.1348V64.999ZM76 63.7256C75.9998 64.4133 75.4426 64.999 74.7324 64.999H63.457V54.1455H76V63.7256ZM75.999 50.8057H0V14.1943H75.999V50.8057ZM37.5 41.8584C36.0204 41.8584 34.8167 43.0612 34.8164 44.5322C34.8164 46.0211 36.0238 47.2207 37.5 47.2207C38.9797 47.2206 40.1836 46.0175 40.1836 44.5322C40.1833 43.0613 38.9796 41.8585 37.5 41.8584ZM37.5 19C32.8129 19 29 22.7995 29 27.4707H33.3086C33.3086 25.1669 35.1883 23.293 37.5 23.293C38.5832 23.293 39.6275 23.738 40.4346 24.5459C41.2453 25.3538 41.6914 26.3915 41.6914 27.4746C41.6913 29.0833 40.7883 30.5223 39.3369 31.2314C36.9121 32.4063 35.3478 35.0207 35.3477 37.8818V39.4346H39.6562V37.8818C39.6528 36.6471 40.2718 35.5497 41.2275 35.084C44.1693 33.6516 46 30.7342 46 27.4707C46 25.2445 45.1073 23.1237 43.4824 21.5078C41.8576 19.8886 39.7336 19 37.5 19ZM12.543 10.8545H0V1.27441C0 0.577028 0.57377 0.00010174 1.26758 0H12.543V10.8545ZM28.4062 10.8545H15.8643V0H28.4062V10.8545ZM44.2705 10.8545H31.7285V0H44.2705V10.8545ZM60.1348 10.8545H47.5928V0H60.1348V10.8545ZM75.6289 0.37207L75.626 0.375977C75.8568 0.607273 75.999 0.92585 75.999 1.27441V10.8545H63.457V0H74.7314L75.6289 0.37207Z"/></svg>`;
+
+  function esc(s) {
+    return (s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/'/g, '&#39;')
+      .replace(/"/g, '&quot;');
+  }
+
+  document.querySelectorAll('.panel-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.classList.remove('active');
+    });
+  });
+
+  document.getElementById('keyOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('keyOverlay')) closeKeyOverlay();
+  });
+
+  document.getElementById('keyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveApiKey();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.panel-overlay.active').forEach(p => p.classList.remove('active'));
+      closeKeyOverlay();
+      closePlayer();
+    }
+  });
+</script>
+</body>
+</html>
