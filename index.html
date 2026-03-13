@@ -289,8 +289,11 @@
   .player-movie-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--accent); }
   .player-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 20px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.2s; }
   .player-back:hover { border-color: var(--accent); color: var(--accent); }
-  .player-frame-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 60px; }
-  .player-frame-wrap iframe { width: 100%; height: 100%; border: none; }
+  .player-reroll { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 20px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.2s; }
+  .player-reroll:hover { border-color: var(--accent); color: var(--accent); }
+  .player-reroll:disabled { opacity: 0.4; cursor: default; border-color: var(--border); color: var(--muted); }
+  .player-frame-wrap { position: absolute; top: 60px; left: 0; right: 0; bottom: 0; }
+  .player-frame-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
 
   .btn { display: inline-block; border: none; padding: 14px 32px; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; font-weight: 500; }
   .btn-primary { background: var(--accent); color: var(--bg); }
@@ -299,7 +302,7 @@
   .btn-ghost:hover { border-color: var(--text); color: var(--text); }
   .btn + .btn { margin-left: 12px; }
 
-  .resolving { text-align: center; padding: 60px; }
+  .resolving { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
   .resolving-text { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-top: 20px; }
 
   ::-webkit-scrollbar { width: 4px; }
@@ -463,7 +466,9 @@
   <div class="player-topbar">
     <button class="player-back" onclick="closePlayer()">← <span data-en="Back" data-ru="Назад">Back</span></button>
     <div class="player-movie-title" id="playerTitle"></div>
-    <div style="width:80px"></div>
+    <button class="player-reroll" id="playerReroll" style="display:none" onclick="mysteryReroll()">
+      ↻ <span data-en="Try another" data-ru="Другой фильм">Try another</span>
+    </button>
   </div>
   <div class="player-frame-wrap" id="playerFrameWrap">
     <div class="resolving">
@@ -713,16 +718,46 @@
     _lastPanel = fromPanel || null;
     document.getElementById('playerOverlay').classList.add('active');
 
-    const url = `https://fbfree.cfd/film/${filmId}/`;
-    const wrap = document.getElementById('playerFrameWrap');
+    const isMystery = fromPanel === 'mysteryPanel';
+    const rerollBtn = document.getElementById('playerReroll');
+    rerollBtn.style.display = isMystery ? '' : 'none';
+    rerollBtn.disabled = false;
 
+    const STREAM_HOST = 'https://fbfree.lat'; // update here if domain changes
+    const wrap = document.getElementById('playerFrameWrap');
     const iframe = document.createElement('iframe');
-    iframe.src = url;
-    iframe.allow = 'autoplay; fullscreen; encrypted-media';
+    iframe.src = `${STREAM_HOST}/film/${filmId}/`;
     iframe.allowFullscreen = true;
-    iframe.style.cssText = 'width:100%;height:100%;border:none;';
+    iframe.setAttribute('allowfullscreen', 'true');
+    iframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;';
     wrap.innerHTML = '';
     wrap.appendChild(iframe);
+  }
+
+  async function mysteryReroll() {
+    const rerollBtn = document.getElementById('playerReroll');
+    const wrap = document.getElementById('playerFrameWrap');
+    rerollBtn.disabled = true;
+    wrap.innerHTML = `<div class="resolving">${REEL_SVG}<div class="resolving-text">${t('Finding another film...', 'Ищем другой фильм...')}</div></div>`;
+    document.getElementById('playerTitle').textContent = '?';
+    try {
+      const res = await fetch(`${API}/api/mystery`);
+      const film = await res.json();
+      if (film.error) throw new Error(film.error);
+      const STREAM_HOST = 'https://fbfree.lat';
+      const iframe = document.createElement('iframe');
+      iframe.src = `${STREAM_HOST}/film/${film.id}/`;
+      iframe.allowFullscreen = true;
+      iframe.setAttribute('allowfullscreen', 'true');
+      iframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+      iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;';
+      wrap.innerHTML = '';
+      wrap.appendChild(iframe);
+    } catch(e) {
+      wrap.innerHTML = `<div class="resolving"><div class="resolving-text" style="color:var(--film-red)">${t('Failed to load. Try again.', 'Не удалось загрузить. Попробуй снова.')}</div></div>`;
+    }
+    rerollBtn.disabled = false;
   }
 
   // MYSTERY MOVIE
@@ -760,7 +795,8 @@
   }
 
   // SINGLE DRAFT
-  let draftFilters = { ratingMin: 1, ratingMax: 10, yearMin: 1900, yearMax: 2026, excludeCountries: [], excludeGenres: [], excludeSequels: false };
+  const CURRENT_YEAR = new Date().getFullYear();
+  let draftFilters = { ratingMin: 1, ratingMax: 10, yearMin: 1900, yearMax: CURRENT_YEAR, excludeCountries: [], excludeGenres: [], excludeSequels: false };
   let lbCsvData = null, lbCsvName = null;
   try { lbCsvData = localStorage.getItem('lb_csv_data'); lbCsvName = localStorage.getItem('lb_csv_name'); } catch(e) {}
 
@@ -779,7 +815,7 @@
     {en:'War',       ru:'Военный',         kp:'военный'},
     {en:'Biography', ru:'Биография',       kp:'биография'},
     {en:'History',   ru:'Исторический',    kp:'история'},
-    {en:'Musical',   ru:'Мюзикл',          kp:'мюзыкальный'},
+    {en:'Musical',   ru:'Мюзикл',          kp:'музыкальный'},
     {en:'Sport',     ru:'Спорт',           kp:'спорт'},
   ];
 
@@ -795,7 +831,7 @@
     const GENRE_GROUPS = [
       { label: t('Dark', 'Тёмные'),   genres: ['ужасы','триллер','криминал'] },
       { label: t('Action', 'Экшн'),   genres: ['боевик','вестерн','военный'] },
-      { label: t('Light', 'Лёгкие'),  genres: ['комедия','мелодрама','мюзыкальный'] },
+      { label: t('Light', 'Лёгкие'),  genres: ['комедия','мелодрама','музыкальный'] },
       { label: t('Imaginative', 'Фантазия'), genres: ['фантастика','фэнтези','мультфильм'] },
       { label: t('Real', 'Реальное'), genres: ['документальный','биография','история','спорт'] },
     ];
@@ -855,8 +891,8 @@
           <div class="dual-range-wrap" id="yearRangeWrap">
             <div class="dual-range-track"></div>
             <div class="dual-range-fill" id="yearFill"></div>
-            <input type="range" min="1900" max="2026" step="1" value="${f.yearMin}" id="yearMin" oninput="updateDualRange('year')">
-            <input type="range" min="1900" max="2026" step="1" value="${f.yearMax}" id="yearMax" oninput="updateDualRange('year')">
+            <input type="range" min="1900" max="${CURRENT_YEAR}" step="1" value="${f.yearMin}" id="yearMin" oninput="updateDualRange('year')">
+            <input type="range" min="1900" max="${CURRENT_YEAR}" step="1" value="${f.yearMax}" id="yearMax" oninput="updateDualRange('year')">
           </div>
           <div class="range-vals">
             <span class="range-val" id="yearMinVal">${f.yearMin}</span>
@@ -1234,7 +1270,8 @@
   }
 
   function errorHTML(retryFn) {
-    window._retryFn = retryFn;
+    const fnId = '_retry_' + Math.random().toString(36).slice(2);
+    window[fnId] = retryFn;
     return `<div style="text-align:center;padding:40px">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--film-red);margin-bottom:12px">
         ${t('Connection Error', 'Ошибка соединения')}
@@ -1242,7 +1279,7 @@
       <div style="color:var(--muted);font-size:13px;margin-bottom:24px">
         ${t('Make sure the server is running at localhost:7777', 'Убедись, что сервер запущен на localhost:7777')}
       </div>
-      <button class="btn btn-ghost" onclick="window._retryFn()">
+      <button class="btn btn-ghost" onclick="window['${fnId}']()">
         ${t('Retry', 'Повторить')}
       </button>
     </div>`;

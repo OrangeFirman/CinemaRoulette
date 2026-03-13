@@ -8,7 +8,6 @@ from socketserver import ThreadingMixIn
 import datetime
 import threading
 import os
-import json as _json_mod
 import concurrent.futures
 import re as _re
 import sys
@@ -30,13 +29,14 @@ _key_file = os.path.join(USER_DIR, 'api_key.json')
 
 _config_cache = None
 _key_cache = None
+_tmdb_key_cache = None
 
 def _load_config():
     global _config_cache
     if _config_cache is None:
         try:
             with open(_counter_file) as f:
-                _config_cache = _json_mod.load(f)
+                _config_cache = json.load(f)
         except Exception:
             _config_cache = {}
     return _config_cache
@@ -46,7 +46,7 @@ def _save_config(data):
     _config_cache = data
     try:
         with open(_counter_file, 'w') as f:
-            _json_mod.dump(data, f)
+            json.dump(data, f)
     except Exception:
         pass
 
@@ -67,7 +67,7 @@ def get_api_key():
     if _key_cache is None:
         try:
             with open(_key_file) as f:
-                _key_cache = _json_mod.load(f).get('api_key', '')
+                _key_cache = json.load(f).get('api_key', '')
         except Exception:
             _key_cache = ''
     return _key_cache
@@ -78,7 +78,7 @@ def set_api_key(key):
         _key_cache = key.strip()
         try:
             with open(_key_file, 'w') as f:
-                _json_mod.dump({'api_key': _key_cache}, f)
+                json.dump({'api_key': _key_cache}, f)
         except Exception:
             pass
 
@@ -89,26 +89,30 @@ TMDB_BASE = "https://api.themoviedb.org/3"
 TMDB_IMG  = "https://image.tmdb.org/t/p/w500"
 
 def get_tmdb_key():
-    global _key_cache
-    try:
-        with open(_key_file) as f:
-            return _json_mod.load(f).get("tmdb_key", "")
-    except Exception:
-        return ""
+    global _tmdb_key_cache
+    if _tmdb_key_cache is None:
+        try:
+            with open(_key_file) as f:
+                _tmdb_key_cache = json.load(f).get("tmdb_key", "")
+        except Exception:
+            _tmdb_key_cache = ""
+    return _tmdb_key_cache
 
 def set_tmdb_key(key):
+    global _tmdb_key_cache
     with _counter_lock:
+        _tmdb_key_cache = key.strip()
         try:
             try:
                 with open(_key_file) as f:
-                    data = _json_mod.load(f)
+                    data = json.load(f)
             except Exception:
                 data = {}
-            data["tmdb_key"] = key.strip()
+            data["tmdb_key"] = _tmdb_key_cache
             with open(_key_file, 'w') as f:
-                _json_mod.dump(data, f)
-        except Exception:
-            pass
+                json.dump(data, f)
+        except Exception as e:
+            print(f"Error saving TMDb key: {e}")
 
 def tmdb_request(path):
     key = get_tmdb_key()
@@ -168,7 +172,6 @@ def kp_request(path):
     key = get_api_key()
     if not key:
         return None
-    increment_counter()
     url = f"{API_BASE}{path}"
     req = urllib.request.Request(url, headers={
         "X-API-KEY": key,
@@ -176,18 +179,34 @@ def kp_request(path):
     })
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read().decode())
+            data = json.loads(resp.read().decode())
+        increment_counter()
+        return data
     except Exception as e:
         print(f"API error: {e}")
         return None
 
 def get_random_film():
-    for max_page in [50, 20, 10, 5, 1]:
-        page = random.randint(1, max_page)
-        order = random.choice(["RATING", "NUM_VOTE", "YEAR"])
-        data = kp_request(f"/v2.2/films?order={order}&type=FILM&page={page}&ratingFrom=1")
+    chaos = random.random() < 0.33
+
+    for _ in range(4):
+        if chaos:
+            # The Black Gunn zone: 1950 to today, any rating, chronological chaos
+            y_start, y_end = random_year_window(1950, datetime.date.today().year)
+            rating_min = 1
+            order = "YEAR"
+            page = random.randint(1, 10)
+        else:
+            # 5+ zone: locked to a narrow year window so page 1 isn't the Avengers
+            y_start, y_end = random_year_window(1970, datetime.date.today().year)
+            rating_min = 5
+            order = random.choice(["NUM_VOTE", "YEAR"])
+            page = random.randint(1, 5)
+
+        data = kp_request(f"/v2.2/films?order={order}&type=FILM&page={page}&ratingFrom={rating_min}&yearFrom={y_start}&yearTo={y_end}")
         if data and "items" in data and data["items"]:
             return random.choice(data["items"])
+
     return None
 
 SEQUEL_PATTERNS = [
@@ -209,7 +228,9 @@ def random_year_window(year_min, year_max):
     y_start = random.randint(year_min, year_max - window)
     return y_start, y_start + window
 
-def get_films_batch(count=3, rating_min=1, rating_max=10, year_min=1900, year_max=2026, exclude_countries=None, exclude_sequels=False, exclude_genres=None):
+def get_films_batch(count=3, rating_min=1, rating_max=10, year_min=1900, year_max=None, exclude_countries=None, exclude_sequels=False, exclude_genres=None):
+    if year_max is None:
+        year_max = datetime.date.today().year
     if exclude_countries is None: exclude_countries = []
     if exclude_genres is None: exclude_genres = []
     excl_genres_lc = [g.lower() for g in exclude_genres]
@@ -271,7 +292,7 @@ def get_roulette_films():
     lock = threading.Lock()
 
     def fetch_good():
-        y_start, y_end = random_year_window(1940, 2023)
+        y_start, y_end = random_year_window(1940, datetime.date.today().year)
         page = random.randint(1, 10)
         data = kp_request(f"/v2.2/films?order=YEAR&type=FILM&page={page}&ratingFrom=7&ratingTo=10&yearFrom={y_start}&yearTo={y_end}")
         if data and "items" in data and data["items"]:
@@ -356,7 +377,7 @@ def search_film_by_title(title, year=None):
         "kinopoiskId": best.get("filmId") or best.get("kinopoiskId"),
         "nameRu":      best.get("nameRu"),
         "nameEn":      best.get("nameEn"),
-        "nameOriginal":best.get("nameEn"),
+        "nameOriginal":best.get("nameOriginal") or best.get("nameEn"),
         "year":        best.get("year"),
         "posterUrlPreview": best.get("posterUrlPreview"),
         "posterUrl":   best.get("posterUrl"),
@@ -558,7 +579,6 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
     def handle_error(self, request, client_address):
-        import sys
         exc = sys.exc_info()[1]
         if isinstance(exc, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)):
             pass
@@ -569,4 +589,10 @@ if __name__ == "__main__":
     port = 7777
     print(f"CinemaRoulette running at http://localhost:{port}")
     print("Press Ctrl+C to stop.")
+    
+    # --- Add these two lines to auto-launch ---
+    import webbrowser
+    webbrowser.open(f"http://localhost:{port}")
+    # ------------------------------------------
+    
     ThreadedHTTPServer(("localhost", port), Handler).serve_forever()
