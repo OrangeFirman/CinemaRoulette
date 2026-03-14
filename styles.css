@@ -190,6 +190,7 @@
   .chip { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 1px; padding: 5px 11px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
   .chip:hover { border-color: #444; color: var(--text); }
   .chip.on-genre { border-color: var(--accent); color: var(--accent); background: rgba(232,197,71,0.06); }
+  .chip.on-genre-excl { border-color: var(--film-red); color: var(--film-red); background: rgba(192,57,43,0.06); }
   .chip.on-country { border-color: var(--film-red); color: var(--film-red); background: rgba(192,57,43,0.06); }
 
   .genre-group { margin-bottom: 12px; }

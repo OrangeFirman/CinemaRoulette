@@ -340,16 +340,20 @@
     return null;
   }
 
-  async function getFilmsBatch(count=3, ratingMin=1, ratingMax=10, yearMin=1900, yearMax=null, excludeCountries=[], excludeSequels=false, excludeGenres=[]) {
+  async function getFilmsBatch(count=3, ratingMin=1, ratingMax=10, yearMin=1900, yearMax=null, excludeCountries=[], excludeSequels=false, excludeGenres=[], genreMode='exclude') {
     if (!yearMax) yearMax = new Date().getFullYear();
-    const exclGenresLc = excludeGenres.map(g => g.toLowerCase());
+    const genresLc = excludeGenres.map(g => g.toLowerCase());
     const films = [], seenIds = new Set();
 
+    const ORDERS = ['YEAR', 'NUM_VOTE', 'RATING'];
+    let taskIdx = 0;
     const tasks = Array.from({ length: 18 }, () => async () => {
       if (films.length >= count) return;
       const [yStart, yEnd] = randomYearWindow(yearMin, yearMax);
-      const page = Math.floor(Math.random() * 15) + 1;
-      const data = await kpRequest(`/v2.2/films?order=YEAR&type=FILM&page=${page}&ratingFrom=${ratingMin}&ratingTo=${ratingMax}&yearFrom=${yStart}&yearTo=${yEnd}`);
+      // Rotate through sort orders so we don't hit the same ranked films repeatedly
+      const order = ORDERS[taskIdx++ % ORDERS.length];
+      const page = Math.floor(Math.random() * 20) + 1;
+      const data = await kpRequest(`/v2.2/films?order=${order}&type=FILM&page=${page}&ratingFrom=${ratingMin}&ratingTo=${ratingMax}&yearFrom=${yStart}&yearTo=${yEnd}`);
       if (!data?.items?.length) return;
       for (const f of [...data.items].sort(() => Math.random() - 0.5)) {
         if (films.length >= count) break;
@@ -358,10 +362,21 @@
         const countries = (f.countries || []).map(c => c.country || '');
         if (excludeCountries.some(ex => countries.some(c => c.toLowerCase().includes(ex.toLowerCase())))) continue;
         if (excludeSequels && (looksLikeSequel(f.nameRu || '') || looksLikeSequel(f.nameEn || ''))) continue;
-        if (exclGenresLc.length) {
+        if (genresLc.length) {
           const fg = (f.genres || []).map(g => (g.genre || '').toLowerCase());
-          if (exclGenresLc.some(eg => fg.some(g => g.includes(eg)))) continue;
+          if (genreMode === 'exclude') {
+            if (genresLc.some(eg => fg.some(g => g.includes(eg)))) continue;
+          } else {
+            if (!genresLc.some(eg => fg.some(g => g.includes(eg)))) continue;
+          }
         }
+        // Post-filter: skip unreleased (no rating) and future films
+        const rating = f.ratingKinopoisk || f.ratingImdb;
+        const filmYear = parseInt(f.year) || 0;
+        const thisYear = new Date().getFullYear();
+        if (!rating) continue;                                      // no score = unreleased/unrated
+        if (filmYear > thisYear) continue;                          // not out yet
+        if (rating < ratingMin || rating > ratingMax) continue;     // outside rating range
         seenIds.add(fid); films.push(f);
       }
     });
@@ -686,7 +701,7 @@
 
   // SINGLE DRAFT
   const CURRENT_YEAR = new Date().getFullYear();
-  let draftFilters = { ratingMin: 1, ratingMax: 10, yearMin: 1900, yearMax: CURRENT_YEAR, excludeCountries: [], excludeGenres: [], excludeSequels: false };
+  let draftFilters = { ratingMin: 1, ratingMax: 10, yearMin: 1900, yearMax: CURRENT_YEAR, excludeCountries: [], excludeGenres: [], excludeSequels: false, genreMode: 'exclude' };
   let lbCsvData = null, lbCsvName = null;
   try { lbCsvData = localStorage.getItem('lb_csv_data'); lbCsvName = localStorage.getItem('lb_csv_name'); } catch(e) {}
 
@@ -732,7 +747,8 @@
         if (!g) return '';
         const lbl = lang === 'ru' ? g.ru : g.en;
         const on = f.excludeGenres.includes(kp);
-        return `<button onclick="toggleGenre('${kp}',this)" class="chip${on ? ' on-genre' : ''}">${lbl}</button>`;
+        const onClass = on ? (f.genreMode === 'include' ? ' on-genre' : ' on-genre-excl') : '';
+        return `<button onclick="toggleGenre('${kp}',this)" class="chip${onClass}">${lbl}</button>`;
       }).join('');
       return `<div class="genre-group"><div class="genre-group-label">${grp.label}</div><div class="chip-grid">${chips}</div></div>`;
     }).join('');
@@ -748,7 +764,13 @@
 
     const sharedFilters = `
       <div class="filter-section">
-        <div class="filter-label">${t('Exclude genres', 'Исключить жанры')}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="filter-label" style="margin-bottom:0">${f.genreMode === 'include' ? t('In the mood for', 'Хочу посмотреть') : t('Exclude genres', 'Исключить жанры')}</div>
+          <div style="display:flex;border:1px solid var(--border);flex-shrink:0">
+            <button onclick="setGenreMode('exclude')" style="background:${f.genreMode === 'exclude' ? 'var(--accent)' : 'none'};border:none;color:${f.genreMode === 'exclude' ? 'var(--bg)' : 'var(--muted)'};font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-transform:uppercase;transition:all 0.15s">${t('EXCLUDE', 'ИСКЛЮЧИТЬ')}</button>
+            <button onclick="setGenreMode('include')" style="background:${f.genreMode === 'include' ? 'var(--accent)' : 'none'};border:none;color:${f.genreMode === 'include' ? 'var(--bg)' : 'var(--muted)'};font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-transform:uppercase;transition:all 0.15s">${t('INCLUDE', 'ВКЛЮЧИТЬ')}</button>
+          </div>
+        </div>
         ${genreGroupsHtml}
       </div>
       <div class="filter-section">
@@ -863,7 +885,13 @@
   function toggleGenre(g, btn) {
     const idx = draftFilters.excludeGenres.indexOf(g);
     if (idx >= 0) { draftFilters.excludeGenres.splice(idx, 1); btn.className = 'chip'; }
-    else          { draftFilters.excludeGenres.push(g);        btn.className = 'chip on-genre'; }
+    else          { draftFilters.excludeGenres.push(g);        btn.className = draftFilters.genreMode === 'include' ? 'chip on-genre' : 'chip on-genre-excl'; }
+  }
+
+  function setGenreMode(mode) {
+    draftFilters.genreMode = mode;
+    draftFilters.excludeGenres = []; // clear selection when switching modes
+    showDraftFilters();
   }
 
   function onLbFileChosen(input) {
@@ -929,7 +957,7 @@
 
     body.innerHTML = loadingHTML(t('Shuffling the deck...', 'Тасуем колоду...'));
     try {
-      const films = await getFilmsBatch(3, f.ratingMin, f.ratingMax, f.yearMin, f.yearMax, f.excludeCountries, f.excludeSequels, f.excludeGenres);
+      const films = await getFilmsBatch(3, f.ratingMin, f.ratingMax, f.yearMin, f.yearMax, f.excludeCountries, f.excludeSequels, f.excludeGenres, f.genreMode);
       if (!films.length) throw new Error('Not enough films');
       fetchStats();
       body.innerHTML = renderDraftGrid(films.map(formatFilm), false);
