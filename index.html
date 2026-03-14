@@ -6,321 +6,7 @@
 <title>CinemaRoulette</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Golos+Text:wght@400;500&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0a0a0a;
-    --surface: #111111;
-    --surface2: #1a1a1a;
-    --border: #2a2a2a;
-    --accent: #e8c547;
-    --accent2: #c0392b;
-    --text: #f0f0f0;
-    --muted: #666;
-    --film-red: #c0392b;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 300;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  body.lang-ru { font-family: 'Golos Text', sans-serif; }
-
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0.4;
-  }
-
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 24px 48px;
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    background: rgba(10,10,10,0.95);
-    backdrop-filter: blur(8px);
-    z-index: 100;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 28px;
-    text-decoration: none;
-  }
-
-  .logo-icon {
-    width: 30px;
-    height: auto;
-    flex-shrink: 0;
-    fill: var(--accent);
-  }
-
-  .api-counter { display: flex; align-items: center; gap: 16px; font-size: 11px; letter-spacing: 1px; color: var(--muted); }
-  .counter-bar-wrap { width: 80px; height: 3px; background: var(--border); }
-  .counter-bar { height: 3px; background: var(--accent); transition: width 0.4s ease; }
-  .counter-bar.warn { background: #e67e22; }
-  .counter-bar.danger { background: var(--film-red); }
-
-  .lang-toggle { display: flex; gap: 0; border: 1px solid var(--border); }
-  .lang-btn { background: none; border: none; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 2px; padding: 6px 14px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
-  .lang-btn.active { background: var(--accent); color: var(--bg); font-weight: 500; }
-
-  .key-btn { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 2px; padding: 6px 14px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
-  .key-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .key-btn.key-set { border-color: rgba(232,197,71,0.3); color: var(--muted); }
-  .key-btn.key-set::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #2ecc71; flex-shrink: 0; }
-  .key-btn.key-missing { border-color: rgba(232,197,71,0.5); color: var(--accent); animation: pulse-border 2s ease-in-out infinite; }
-  .key-btn.key-missing::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-
-  @keyframes pulse-border {
-    0%, 100% { border-color: rgba(232,197,71,0.4); }
-    50% { border-color: rgba(232,197,71,1); }
-  }
-
-  .key-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 400; backdrop-filter: blur(4px); align-items: center; justify-content: center; }
-  .key-overlay.active { display: flex; }
-  .key-panel { background: var(--surface); border: 1px solid var(--border); width: 90%; max-width: 560px; position: relative; animation: panelIn 0.25s ease; }
-  .key-panel-header { padding: 28px 36px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .key-panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; color: var(--accent); }
-  .key-panel-body { padding: 32px 36px 36px; }
-  .key-step { display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start; }
-  .key-step-num { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--accent); opacity: 0.5; flex-shrink: 0; line-height: 1.3; }
-  .key-step-text { font-size: 13px; color: #999; line-height: 1.7; }
-  .key-step-text a { color: var(--accent); text-decoration: none; }
-  .key-step-text a:hover { text-decoration: underline; }
-  .key-input-row { display: flex; gap: 8px; margin-top: 28px; }
-  .key-input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 10px 14px; outline: none; transition: border-color 0.2s; letter-spacing: 1px; }
-  .key-input:focus { border-color: var(--accent); }
-  .key-input::placeholder { color: var(--muted); letter-spacing: 0; }
-  .key-input.key-error { border-color: var(--film-red); }
-  .key-save-btn { background: var(--accent); border: none; color: #111; font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 3px; padding: 10px 24px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
-  .key-save-btn:hover { background: #f0d060; }
-  .key-save-btn:disabled { opacity: 0.4; cursor: default; }
-  .key-status-msg { margin-top: 10px; font-size: 12px; letter-spacing: 1px; min-height: 18px; }
-  .key-status-msg.ok { color: #2ecc71; }
-  .key-status-msg.err { color: var(--film-red); }
-
-  main { max-width: 1100px; margin: 0 auto; padding: 80px 48px; }
-  .hero-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 56px; padding-bottom: 40px; border-bottom: 1px solid var(--border); gap: 40px; }
-  .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(56px, 7.5vw, 96px); line-height: 0.9; letter-spacing: 2px; flex-shrink: 0; }
-  .hero-title em { color: var(--accent); font-style: normal; display: block; }
-  .hero-right { max-width: 360px; padding-bottom: 6px; }
-  .hero-tagline { font-size: 14px; color: var(--muted); line-height: 1.75; margin-bottom: 16px; }
-  .why-link { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s; }
-  .why-link:hover { opacity: 0.7; }
-  .modes-label { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
-  .modes { display: grid; grid-template-columns: 1fr 1.45fr 1fr; gap: 12px; margin-bottom: 80px; align-items: stretch; }
-  
-  .mode-card { background: var(--surface); cursor: pointer; position: relative; overflow: hidden; border: 1px solid var(--border); text-align: center; color: var(--text); font-family: 'DM Sans', sans-serif; display: flex; flex-direction: column; transition: background 0.25s, border-color 0.3s, transform 0.25s, box-shadow 0.3s; padding: 0; }
-  .mode-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255,255,255,0.02) 0%, transparent 60%); pointer-events: none; }
-  .mode-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--border); transform: scaleX(0); transition: transform 0.35s ease, background 0.2s; transform-origin: left; }
-  .mode-card:hover { background: #161616; transform: translateY(-4px); border-color: rgba(232,197,71,0.2); box-shadow: 0 16px 40px rgba(0,0,0,0.4); }
-  .mode-card:hover::after { transform: scaleX(1); background: var(--accent); }
-  .mode-card.featured { border-color: rgba(232,197,71,0.2); background: #141414; box-shadow: 0 0 0 0 rgba(232,197,71,0); }
-  .mode-card.featured:hover { border-color: rgba(232,197,71,0.5); box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 30px rgba(232,197,71,0.06); }
-  .mode-icon-wrap { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; padding: 40px 20% 32px; position: relative; }
-  .mode-icon-wrap::after { content: ''; position: absolute; bottom: 0; left: 20%; right: 20%; height: 1px; background: var(--border); transition: background 0.3s; }
-  .mode-card:hover .mode-icon-wrap::after { background: rgba(232,197,71,0.15); }
-  .mode-icon-svg { width: 100%; height: auto; fill: #3a3a3a; transition: fill 0.35s ease, transform 0.35s ease; display: block; }
-  .mode-card:hover .mode-icon-svg { fill: var(--accent); transform: scale(1.06); }
-
-  @keyframes reel-spin { 0% { transform: scale(1) rotate(0deg); } 100% { transform: scale(1.06) rotate(360deg); } }
-  .mode-card.featured:hover .mode-icon-svg { animation: reel-spin 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards; fill: var(--accent); }
-
-  .mode-text { flex: 1; padding: 24px 28px 36px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  .mode-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px; color: var(--muted); transition: color 0.25s; line-height: 1.1; }
-  .mode-card:hover .mode-name { color: var(--text); }
-  .mode-card.featured .mode-name { font-size: 24px; color: var(--accent); }
-  .mode-card.featured:hover .mode-name { color: var(--accent); }
-  .mode-desc { font-size: 14px; color: #555; line-height: 1.7; transition: color 0.25s; max-width: 260px; }
-  .mode-card:hover .mode-desc { color: var(--muted); }
-  .mode-card.featured .mode-desc { color: #666; }
-  .mode-card.featured:hover .mode-desc { color: #888; }
-
-  .why-overlay { display: none; position: fixed; inset: 0; background: #0a0a0a; z-index: 300; overflow-y: auto; animation: fadeIn 0.3s ease; }
-  .why-overlay.active { display: block; }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  .why-close { position: absolute; top: 48px; right: 0; background: none; border: 1px solid var(--border); color: var(--muted); width: 40px; height: 40px; cursor: pointer; font-size: 18px; transition: border-color 0.2s, color 0.2s; z-index: 301; }
-  .why-close:hover { border-color: var(--accent); color: var(--accent); }
-  .why-content { max-width: 680px; margin: 0 auto; padding: 100px 48px 120px; position: relative; }
-  .why-eyebrow { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--accent); margin-bottom: 24px; }
-  .why-heading { font-family: 'Bebas Neue', sans-serif; font-size: clamp(40px, 5vw, 64px); line-height: 0.95; letter-spacing: 2px; margin-bottom: 48px; }
-  .why-heading em { color: var(--accent); font-style: normal; }
-  .why-section { margin-bottom: 40px; padding-bottom: 40px; border-bottom: 1px solid var(--border); }
-  .why-section:last-child { border-bottom: none; }
-  .why-section-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 3px; color: var(--accent); margin-bottom: 14px; }
-  .why-section p { font-size: 15px; color: #999; line-height: 1.8; margin-bottom: 12px; }
-
-  .panel-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; backdrop-filter: blur(4px); }
-  .panel-overlay.active { display: flex; align-items: center; justify-content: center; }
-  .panel { background: var(--surface); border: 1px solid var(--border); width: 90%; max-width: 900px; max-height: 90vh; overflow-y: auto; position: relative; animation: panelIn 0.25s ease; }
-  .panel-header { padding: 32px 40px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 3px; color: var(--accent); }
-  .panel-close { background: none; border: 1px solid var(--border); color: var(--muted); width: 36px; height: 36px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-  .panel-close:hover { border-color: var(--accent); color: var(--accent); }
-  .panel-body { padding: 40px; }
-
-  .filter-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
-  .filter-tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 3px; padding: 0 0 12px; margin-right: 32px; cursor: pointer; transition: color 0.2s, border-color 0.2s; margin-bottom: -1px; }
-  .filter-tab:hover { color: var(--text); }
-  .filter-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .filter-pane { display: none; }
-  .filter-pane.active { display: block; }
-  .filter-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
-  .filter-section { margin-bottom: 28px; }
-
-  .dual-range-wrap { position: relative; height: 36px; display: flex; align-items: center; }
-  .dual-range-track { position: absolute; left: 0; right: 0; height: 3px; background: var(--border); border-radius: 2px; pointer-events: none; }
-  .dual-range-fill { position: absolute; height: 3px; background: var(--accent); border-radius: 2px; pointer-events: none; }
-  .dual-range-wrap input[type=range] { position: absolute; width: 100%; height: 3px; background: transparent; -webkit-appearance: none; appearance: none; pointer-events: none; outline: none; margin: 0; }
-  .dual-range-wrap input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); cursor: pointer; pointer-events: all; box-shadow: 0 0 0 1px var(--accent); transition: transform 0.15s; }
-  .dual-range-wrap input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-  .range-vals { display: flex; justify-content: space-between; margin-top: 4px; }
-  .range-val { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--accent); letter-spacing: 1px; }
-  .range-sep { font-size: 12px; color: var(--border); letter-spacing: 2px; align-self: center; }
-
-  .chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 1px; padding: 5px 11px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
-  .chip:hover { border-color: #444; color: var(--text); }
-  .chip.on-genre { border-color: var(--accent); color: var(--accent); background: rgba(232,197,71,0.06); }
-  .chip.on-country { border-color: var(--film-red); color: var(--film-red); background: rgba(192,57,43,0.06); }
-
-  .genre-group { margin-bottom: 12px; }
-  .genre-group-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--border); margin-bottom: 6px; }
-
-  .lb-drop { border: 1px dashed var(--border); padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
-  .lb-drop:hover { border-color: var(--accent); background: rgba(232,197,71,0.03); }
-  .lb-drop.has-file { border-style: solid; border-color: rgba(232,197,71,0.3); }
-  .lb-drop-icon { font-size: 24px; margin-bottom: 8px; }
-  .lb-drop-label { font-size: 12px; color: var(--muted); line-height: 1.6; }
-  .lb-drop-filename { font-size: 13px; color: var(--accent); margin-top: 4px; letter-spacing: 1px; }
-  .lb-drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .lb-hint { font-size: 10px; color: var(--border); line-height: 1.7; margin-top: 10px; letter-spacing: 0.5px; }
-
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--border); cursor: pointer; }
-  .toggle-label { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
-  .toggle-switch { width: 36px; height: 20px; background: var(--border); border-radius: 10px; position: relative; transition: background 0.2s; flex-shrink: 0; }
-  .toggle-switch.on { background: var(--accent); }
-  .toggle-switch::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: transform 0.2s; }
-  .toggle-switch.on::after { transform: translateX(16px); }
-
-  .loading { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 60px 0; }
-  .loading-reel { width: 64px; height: 64px; fill: var(--accent); animation: reel-spin-load 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite; opacity: 0.9; }
-  @keyframes reel-spin-load { 0% { transform: rotate(0deg); opacity: 0.5; } 40% { opacity: 1; } 100% { transform: rotate(360deg); opacity: 0.5; } }
-  .loading-text { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); animation: pulse-text 1.4s ease-in-out infinite; }
-  @keyframes pulse-text { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
-
-  .mystery-reveal { text-align: center; padding: 20px 0; }
-  .mystery-duration { font-family: 'Bebas Neue', sans-serif; font-size: 80px; color: var(--accent); line-height: 1; }
-  .mystery-duration-label { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); margin-bottom: 40px; }
-  .mystery-hint { font-size: 14px; color: var(--muted); margin-bottom: 40px; font-style: italic; }
-
-  .draft-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .draft-card { cursor: pointer; border: 1px solid var(--border); overflow: hidden; transition: border-color 0.2s, transform 0.2s; background: var(--bg); }
-  .draft-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 0 28px rgba(232,197,71,0.35); }
-  .draft-poster { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; background: var(--surface2); }
-  .draft-poster-placeholder { width: 100%; aspect-ratio: 2/3; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 40px; }
-  .draft-info { padding: 14px 16px; }
-  .draft-title { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 1px; margin-bottom: 4px; line-height: 1.2; }
-  .draft-year { font-size: 12px; color: var(--muted); }
-  .draft-reroll { margin-top: 24px; text-align: center; }
-
-  .draft-card { position: relative; }
-  .draft-watch-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; opacity: 0; transition: opacity 0.2s; z-index: 3; pointer-events: none; }
-  .draft-card:hover .draft-watch-overlay { opacity: 1; }
-  .draft-watch-label { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 4px; color: var(--accent); border: 2px solid var(--accent); padding: 6px 16px; }
-  .draft-watch-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.35); }
-
-  .roulette-chambers { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
-  .roulette-dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--accent); background: transparent; transition: background 0.3s, transform 0.2s; }
-  .roulette-dot.used { background: var(--accent); transform: scale(0.8); border-color: var(--accent); }
-
-  .roulette-viewport { overflow: hidden; position: relative; height: 330px; margin-bottom: 24px; }
-  .roulette-sprocket { position: absolute; left: 0; right: 0; height: 18px; z-index: 5; pointer-events: none; background: repeating-linear-gradient( to right, var(--surface) 0px, var(--surface) 8px, transparent 8px, transparent 18px, var(--surface) 18px, var(--surface) 26px, transparent 26px, transparent 36px ); }
-  .roulette-sprocket.top { top: 0; }
-  .roulette-sprocket.bottom { bottom: 0; }
-
-  .roulette-fade-left, .roulette-fade-right { position: absolute; top: 0; bottom: 0; width: 160px; z-index: 4; pointer-events: none; }
-  .roulette-fade-left { left: 0; background: linear-gradient(to right, var(--surface) 30%, transparent); }
-  .roulette-fade-right { right: 0; background: linear-gradient(to left, var(--surface) 30%, transparent); }
-
-  .roulette-selector { position: absolute; top: 18px; bottom: 18px; left: 50%; transform: translateX(-50%); width: 202px; border-left: 2px solid rgba(232,197,71,0.45); border-right: 2px solid rgba(232,197,71,0.45); z-index: 3; pointer-events: none; }
-  .roulette-strip { display: flex; gap: 10px; position: absolute; top: 0; bottom: 0; left: 0; align-items: center; will-change: transform; }
-  
-  .roulette-slot { flex-shrink: 0; width: 180px; height: 270px; position: relative; transform: scale(0.65); filter: blur(10px) brightness(0.22) grayscale(0.6); transition: transform 0.45s ease, filter 0.45s ease; }
-  .roulette-slot.active { transform: scale(1); filter: none; cursor: pointer; z-index: 2; transition: transform 0.25s ease, box-shadow 0.25s ease; }
-  .roulette-slot.active img, .roulette-slot.active .roulette-slot-placeholder { filter: blur(5px) brightness(1); transition: filter 0.25s ease; }
-  .roulette-slot.active:hover { transform: scale(1.06); box-shadow: 0 0 32px rgba(232,197,71,0.4); }
-  .roulette-slot.active:hover img, .roulette-slot.active:hover .roulette-slot-placeholder { filter: blur(4px) brightness(1.1); }
-  .roulette-slot img, .roulette-slot-placeholder { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
-  .roulette-slot-placeholder { background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 36px; }
-
-  .roulette-watch-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; opacity: 0; transition: opacity 0.2s; pointer-events: none; filter: none; z-index: 3; }
-  .roulette-slot.active:hover .roulette-watch-overlay { opacity: 1; }
-  .roulette-overlay-label { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px; color: var(--accent); border: 2px solid var(--accent); padding: 6px 14px; white-space: nowrap; }
-  .roulette-overlay-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.35); }
-  .roulette-strip.is-spinning .roulette-slot { transform: scale(0.72) !important; filter: blur(6px) brightness(0.3) grayscale(0.5) !important; transition: none !important; cursor: default !important; pointer-events: none !important; }
-
-  .roulette-controls { display: flex; justify-content: center; }
-  .roulette-spin-btn { background: var(--accent); border: none; color: #111; font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 5px; padding: 14px 72px; cursor: pointer; transition: background 0.15s, transform 0.1s; }
-  .roulette-spin-btn:hover { background: #f0d060; }
-  .roulette-spin-btn:active { transform: scale(0.97); }
-  .roulette-spin-btn:disabled { opacity: 0.2; cursor: default; pointer-events: none; }
-
-  .player-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 500; flex-direction: column; }
-  .player-overlay.active { display: flex; }
-  .player-topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: rgba(0,0,0,0.8); position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
-  .player-movie-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--accent); }
-  .player-back { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 20px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.2s; }
-  .player-back:hover { border-color: var(--accent); color: var(--accent); }
-  .player-reroll { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 20px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.2s; }
-  .player-reroll:hover { border-color: var(--accent); color: var(--accent); }
-  .player-reroll:disabled { opacity: 0.4; cursor: default; border-color: var(--border); color: var(--muted); }
-  .player-frame-wrap { position: absolute; top: 60px; left: 0; right: 0; bottom: 0; }
-  .player-frame-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
-
-  .btn { display: inline-block; border: none; padding: 14px 32px; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; font-weight: 500; }
-  .btn-primary { background: var(--accent); color: var(--bg); }
-  .btn-primary:hover { background: #f0d060; }
-  .btn-ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
-  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
-  .btn + .btn { margin-left: 12px; }
-
-  .resolving { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  .resolving-text { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-top: 20px; }
-
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); }
-  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-
-  @media (max-width: 768px) {
-    header { padding: 16px 20px; }
-    main { padding: 40px 20px; }
-    .modes { grid-template-columns: 1fr; }
-    .hero-row { flex-direction: column; align-items: flex-start; gap: 24px; }
-    .mode-icon-wrap { padding: 28px 30% 24px; }
-    .draft-grid { grid-template-columns: 1fr; }
-    .panel-body { padding: 24px 20px; }
-    .panel-header { padding: 24px 20px 16px; }
-  }
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -331,8 +17,8 @@
 </svg>
 
 <header>
-  <a class="logo" href="#">
-    <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 409 409"><path d="M1.45454e-05 204.402C1.45454e-05 91.8032 91.767 0 204.321 0C316.875 0 408.642 91.8032 408.642 204.402C408.642 285.046 361.491 355.547 293.046 388.515H398.502C404.079 388.515 408.642 393.08 408.642 398.659C408.642 404.238 404.079 408.803 398.502 408.803H204.321C91.767 408.803 1.45454e-05 317 1.45454e-05 204.402ZM273.78 161.29C304.707 161.29 329.55 136.437 329.55 105.498C329.55 74.5584 304.707 49.7056 273.78 49.7056C242.853 49.7056 218.01 74.5584 218.01 105.498C218.01 136.437 242.853 161.29 273.78 161.29ZM261.105 237.877C261.105 268.816 285.948 293.669 316.875 293.669C347.802 293.669 372.645 268.816 372.645 237.877C372.645 206.938 347.802 182.085 316.875 182.085C285.948 182.085 261.105 206.938 261.105 237.877ZM134.355 49.1984C103.428 49.1984 78.585 74.0512 78.585 104.99C78.585 135.93 103.428 160.782 134.355 160.782C165.282 160.782 190.125 135.93 190.125 104.99C190.125 74.0512 165.282 49.1984 134.355 49.1984ZM35.49 237.877C35.49 268.816 60.333 293.669 91.26 293.669C122.187 293.669 147.03 268.816 147.03 237.877C147.03 206.938 122.187 182.085 91.26 182.085C60.333 182.085 35.49 206.938 35.49 237.877ZM180.492 204.402C180.492 217.589 191.139 228.24 204.321 228.24C217.503 228.24 228.15 217.589 228.15 204.402C228.15 191.214 217.503 180.563 204.321 180.563C191.139 180.563 180.492 191.214 180.492 204.402ZM204.321 264.251C173.394 264.251 148.551 289.104 148.551 320.043C148.551 350.982 173.394 375.835 204.321 375.835C235.248 375.835 260.091 350.982 260.091 320.043C260.091 289.104 235.248 264.251 204.321 264.251Z"/></svg>
+  <a class="logo" href="#" id="logoBtn" onclick="logoClick(event)">
+    <svg class="logo-icon" id="logoIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 409 409"><path d="M1.45454e-05 204.402C1.45454e-05 91.8032 91.767 0 204.321 0C316.875 0 408.642 91.8032 408.642 204.402C408.642 285.046 361.491 355.547 293.046 388.515H398.502C404.079 388.515 408.642 393.08 408.642 398.659C408.642 404.238 404.079 408.803 398.502 408.803H204.321C91.767 408.803 1.45454e-05 317 1.45454e-05 204.402ZM273.78 161.29C304.707 161.29 329.55 136.437 329.55 105.498C329.55 74.5584 304.707 49.7056 273.78 49.7056C242.853 49.7056 218.01 74.5584 218.01 105.498C218.01 136.437 242.853 161.29 273.78 161.29ZM261.105 237.877C261.105 268.816 285.948 293.669 316.875 293.669C347.802 293.669 372.645 268.816 372.645 237.877C372.645 206.938 347.802 182.085 316.875 182.085C285.948 182.085 261.105 206.938 261.105 237.877ZM134.355 49.1984C103.428 49.1984 78.585 74.0512 78.585 104.99C78.585 135.93 103.428 160.782 134.355 160.782C165.282 160.782 190.125 135.93 190.125 104.99C190.125 74.0512 165.282 49.1984 134.355 49.1984ZM35.49 237.877C35.49 268.816 60.333 293.669 91.26 293.669C122.187 293.669 147.03 268.816 147.03 237.877C147.03 206.938 122.187 182.085 91.26 182.085C60.333 182.085 35.49 206.938 35.49 237.877ZM180.492 204.402C180.492 217.589 191.139 228.24 204.321 228.24C217.503 228.24 228.15 217.589 228.15 204.402C228.15 191.214 217.503 180.563 204.321 180.563C191.139 180.563 180.492 191.214 180.492 204.402ZM204.321 264.251C173.394 264.251 148.551 289.104 148.551 320.043C148.551 350.982 173.394 375.835 204.321 375.835C235.248 375.835 260.091 350.982 260.091 320.043C260.091 289.104 235.248 264.251 204.321 264.251Z"/></svg>
     <span style="color:var(--text);letter-spacing:4px">CINEMA</span><span style="color:var(--accent);letter-spacing:2px">ROULETTE</span>
   </a>
   <div class="api-counter" id="apiCounter" title="Daily API requests used">
@@ -495,7 +181,7 @@
       </div>
       <div class="key-step">
         <div class="key-step-num">03</div>
-        <div class="key-step-text" data-en="Paste your key below. It will be saved locally next to the script and reloaded automatically on next launch." data-ru="Вставьте ключ ниже. Он сохранится локально рядом со скриптом и будет загружаться автоматически при следующем запуске.">Paste your key below. It will be saved locally next to the script and reloaded automatically on next launch.</div>
+        <div class="key-step-text" data-en="Paste your key below. It will be saved in your browser and loaded automatically next time." data-ru="Вставьте ключ ниже. Он сохранится в браузере и будет загружаться автоматически.">Paste your key below. It will be saved in your browser and loaded automatically next time.</div>
       </div>
       <div class="key-input-row">
         <input class="key-input" id="keyInput" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
@@ -523,9 +209,251 @@
 </div>
 
 <script>
-  const API = 'http://localhost:7777';
-  const REEL_SVG = '<svg class="loading-reel"><use href="#icon-reel"></use></svg>';
+  // ── Constants ────────────────────────────────────────────────
+  const KP_BASE   = 'https://kinopoiskapiunofficial.tech/api';
+  const TMDB_BASE = 'https://api.themoviedb.org/3';
+  const TMDB_IMG  = 'https://image.tmdb.org/t/p/w500';
+  const REEL_SVG  = '<svg class="loading-reel"><use href="#icon-reel"></use></svg>';
+  const POSTER_PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 65" style="width:36px;height:auto;fill:#2a2a2a;opacity:0.6"><path d="M12.543 65H1.26758C0.57377 64.9999 0 64.423 0 63.7256V54.1455H12.543V65ZM28.4062 64.999H15.8643V54.1455H28.4062V64.999ZM44.2705 64.999H31.7285V54.1455H44.2705V64.999ZM60.1348 64.999H47.5928V54.1455H60.1348V64.999ZM76 63.7256C75.9998 64.4133 75.4426 64.999 74.7324 64.999H63.457V54.1455H76V63.7256ZM75.999 50.8057H0V14.1943H75.999V50.8057ZM37.5 41.8584C36.0204 41.8584 34.8167 43.0612 34.8164 44.5322C34.8164 46.0211 36.0238 47.2207 37.5 47.2207C38.9797 47.2206 40.1836 46.0175 40.1836 44.5322C40.1833 43.0613 38.9796 41.8585 37.5 41.8584ZM37.5 19C32.8129 19 29 22.7995 29 27.4707H33.3086C33.3086 25.1669 35.1883 23.293 37.5 23.293C38.5832 23.293 39.6275 23.738 40.4346 24.5459C41.2453 25.3538 41.6914 26.3915 41.6914 27.4746C41.6913 29.0833 40.7883 30.5223 39.3369 31.2314C36.9121 32.4063 35.3478 35.0207 35.3477 37.8818V39.4346H39.6562V37.8818C39.6528 36.6471 40.2718 35.5497 41.2275 35.084C44.1693 33.6516 46 30.7342 46 27.4707C46 25.2445 45.1073 23.1237 43.4824 21.5078C41.8576 19.8886 39.7336 19 37.5 19ZM12.543 10.8545H0V1.27441C0 0.577028 0.57377 0.00010174 1.26758 0H12.543V10.8545ZM28.4062 10.8545H15.8643V0H28.4062V10.8545ZM44.2705 10.8545H31.7285V0H44.2705V10.8545ZM60.1348 10.8545H47.5928V0H60.1348V10.8545ZM75.6289 0.37207L75.626 0.375977C75.8568 0.607273 75.999 0.92585 75.999 1.27441V10.8545H63.457V0H74.7314L75.6289 0.37207Z"/></svg>`;
 
+  // ── Storage ──────────────────────────────────────────────────
+  function getApiKey()   { return localStorage.getItem('kp_api_key')   || ''; }
+  function setApiKey(k)  { localStorage.setItem('kp_api_key',  k.trim()); }
+  function getTmdbKey()  { return localStorage.getItem('tmdb_api_key') || ''; }
+  function setTmdbKey(k) { localStorage.setItem('tmdb_api_key', k.trim()); }
+
+  function _todayStr() { return new Date().toISOString().slice(0, 10); }
+  function getCounter() {
+    try {
+      const d = JSON.parse(localStorage.getItem('api_counter') || '{}');
+      return d.date === _todayStr() ? (d.count || 0) : 0;
+    } catch(e) { return 0; }
+  }
+  function incrementCounter() {
+    const count = getCounter() + 1;
+    localStorage.setItem('api_counter', JSON.stringify({ date: _todayStr(), count }));
+    return count;
+  }
+  function getResetTime() {
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const secs = Math.floor((midnight - now) / 1000);
+    return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
+  }
+
+  // ── API requests ─────────────────────────────────────────────
+  async function kpRequest(path) {
+    const key = getApiKey();
+    if (!key) return null;
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 9000);
+    try {
+      const res = await fetch(`${KP_BASE}${path}`, {
+        headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+        signal: ctrl.signal
+      });
+      clearTimeout(tid);
+      if (!res.ok) return null;
+      incrementCounter();
+      return await res.json();
+    } catch(e) { clearTimeout(tid); return null; }
+  }
+
+  // Run taskFns with limited concurrency; stops launching once isDone() is true
+  async function runPool(taskFns, concurrency, isDone) {
+    const queue = [...taskFns];
+    async function worker() {
+      while (queue.length && !isDone()) {
+        const task = queue.shift();
+        if (task) await task();
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, worker));
+  }
+
+  async function tmdbPosterForFilm(titleEn, titleRu, year) {
+    const key = getTmdbKey();
+    if (!key) return null;
+    for (const query of [titleEn, titleRu].filter(Boolean)) {
+      try {
+        const p = new URLSearchParams({ query, year: year || '', language: 'ru-RU', api_key: key });
+        const res = await fetch(`${TMDB_BASE}/search/movie?${p}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const path = (data.results || [])[0]?.poster_path;
+        if (path) return TMDB_IMG + path;
+      } catch(e) {}
+    }
+    return null;
+  }
+
+  // ── Film logic (ported from cinaroulette.py) ─────────────────
+  const SEQUEL_RE = /\b[2-9]\b|\bII\b|\bIII\b|\bIV\b|\bVI{0,3}\b|[Pp]art [2-9]|[ЧчСс]асть [2-9]|[Сс]езон [2-9]|[Rr]eturns|[Rr]eloaded|[Rr]evolutions|[Rr]esurrection|[Aa]gain|[Ff]orever|[Ss]trikes [Bb]ack/;
+  function looksLikeSequel(title) { return SEQUEL_RE.test(title || ''); }
+
+  function randomYearWindow(yearMin, yearMax) {
+    const span = yearMax - yearMin;
+    if (span < 5) return [yearMin, yearMax];
+    const maxWin = Math.min(8, span);
+    const win    = Math.floor(Math.random() * (maxWin - 3 + 1)) + 3;
+    const yStart = Math.floor(Math.random() * (yearMax - win - yearMin + 1)) + yearMin;
+    return [yStart, yStart + win];
+  }
+
+  function formatFilm(f) {
+    const nameRu   = f.nameRu  || '';
+    const nameEn   = f.nameEn  || '';
+    const nameOrig = f.nameOriginal || '';
+    const titleEn  = nameEn  || nameOrig || nameRu  || 'Unknown';
+    const titleRu  = nameRu  || nameOrig || nameEn  || 'Unknown';
+    const poster   = f.posterUrlPreview || f.posterUrl || null;
+    return {
+      id:         f.kinopoiskId,
+      title_ru:   titleRu,
+      title_en:   titleEn,
+      year:       f.year,
+      poster,
+      poster_raw: poster,
+      rating:     f.ratingKinopoisk || f.ratingImdb,
+      genres:     (f.genres || []).slice(0, 2).map(g => g.genre),
+    };
+  }
+
+  async function getRandomFilm() {
+    const chaos = Math.random() < 0.33;
+    const currentYear = new Date().getFullYear();
+    for (let i = 0; i < 4; i++) {
+      let yStart, yEnd, ratingMin, order, page;
+      if (chaos) {
+        [yStart, yEnd] = randomYearWindow(1950, currentYear);
+        ratingMin = 1; order = 'YEAR';
+        page = Math.floor(Math.random() * 10) + 1;
+      } else {
+        [yStart, yEnd] = randomYearWindow(1970, currentYear);
+        ratingMin = 5;
+        order = Math.random() < 0.5 ? 'NUM_VOTE' : 'YEAR';
+        page = Math.floor(Math.random() * 5) + 1;
+      }
+      const data = await kpRequest(`/v2.2/films?order=${order}&type=FILM&page=${page}&ratingFrom=${ratingMin}&yearFrom=${yStart}&yearTo=${yEnd}`);
+      if (data?.items?.length) return data.items[Math.floor(Math.random() * data.items.length)];
+    }
+    return null;
+  }
+
+  async function getFilmsBatch(count=3, ratingMin=1, ratingMax=10, yearMin=1900, yearMax=null, excludeCountries=[], excludeSequels=false, excludeGenres=[]) {
+    if (!yearMax) yearMax = new Date().getFullYear();
+    const exclGenresLc = excludeGenres.map(g => g.toLowerCase());
+    const films = [], seenIds = new Set();
+
+    const tasks = Array.from({ length: 18 }, () => async () => {
+      if (films.length >= count) return;
+      const [yStart, yEnd] = randomYearWindow(yearMin, yearMax);
+      const page = Math.floor(Math.random() * 15) + 1;
+      const data = await kpRequest(`/v2.2/films?order=YEAR&type=FILM&page=${page}&ratingFrom=${ratingMin}&ratingTo=${ratingMax}&yearFrom=${yStart}&yearTo=${yEnd}`);
+      if (!data?.items?.length) return;
+      for (const f of [...data.items].sort(() => Math.random() - 0.5)) {
+        if (films.length >= count) break;
+        const fid = f.kinopoiskId;
+        if (!fid || seenIds.has(fid)) continue;
+        const countries = (f.countries || []).map(c => c.country || '');
+        if (excludeCountries.some(ex => countries.some(c => c.toLowerCase().includes(ex.toLowerCase())))) continue;
+        if (excludeSequels && (looksLikeSequel(f.nameRu || '') || looksLikeSequel(f.nameEn || ''))) continue;
+        if (exclGenresLc.length) {
+          const fg = (f.genres || []).map(g => (g.genre || '').toLowerCase());
+          if (exclGenresLc.some(eg => fg.some(g => g.includes(eg)))) continue;
+        }
+        seenIds.add(fid); films.push(f);
+      }
+    });
+
+    await runPool(tasks, 3, () => films.length >= count);
+    return films.slice(0, count);
+  }
+
+  async function getRouletteFilms() {
+    const good = [], bad = [], seenIds = new Set();
+
+    const goodTasks = Array.from({ length: 15 }, () => async () => {
+      if (good.length >= 5) return;
+      const [yS, yE] = randomYearWindow(1940, new Date().getFullYear());
+      const page = Math.floor(Math.random() * 10) + 1;
+      const data = await kpRequest(`/v2.2/films?order=YEAR&type=FILM&page=${page}&ratingFrom=7&ratingTo=10&yearFrom=${yS}&yearTo=${yE}`);
+      if (!data?.items?.length) return;
+      for (const f of [...data.items].sort(() => Math.random() - 0.5)) {
+        if (good.length >= 5) break;
+        const fid = f.kinopoiskId;
+        if (fid && !seenIds.has(fid)) { seenIds.add(fid); good.push(f); }
+      }
+    });
+
+    const badTasks = Array.from({ length: 8 }, () => async () => {
+      if (bad.length >= 1) return;
+      const [yS, yE] = randomYearWindow(1950, 2020);
+      const page = Math.floor(Math.random() * 10) + 1;
+      const data = await kpRequest(`/v2.2/films?order=YEAR&type=FILM&page=${page}&ratingFrom=1&ratingTo=5&yearFrom=${yS}&yearTo=${yE}`);
+      if (!data?.items?.length) return;
+      for (const f of [...data.items].sort(() => Math.random() - 0.5)) {
+        const fid = f.kinopoiskId;
+        if (fid && !seenIds.has(fid)) { seenIds.add(fid); bad.push(f); break; }
+      }
+    });
+
+    await runPool(goodTasks, 4, () => good.length >= 5);
+    await runPool(badTasks,  3, () => bad.length  >= 1);
+
+    const pool = good.slice(0, 5);
+    if (bad.length) pool.splice(Math.floor(Math.random() * (pool.length + 1)), 0, bad[0]);
+    return pool;
+  }
+
+  async function searchFilmByTitle(title, year=null) {
+    const data = await kpRequest(`/v2.1/films/search-by-keyword?keyword=${encodeURIComponent(title)}&page=1`);
+    if (!data?.films?.length) return null;
+    let films = data.films;
+    if (year) {
+      films = [...films].sort((a, b) => {
+        const da = Math.abs((parseInt(a.year) || 0) - parseInt(year));
+        const db = Math.abs((parseInt(b.year) || 0) - parseInt(year));
+        return da - db;
+      });
+    }
+    const best = films[0];
+    return {
+      kinopoiskId:      best.filmId || best.kinopoiskId,
+      nameRu:           best.nameRu,
+      nameEn:           best.nameEn,
+      nameOriginal:     best.nameOriginal || best.nameEn,
+      year:             best.year,
+      posterUrlPreview: best.posterUrlPreview,
+      posterUrl:        best.posterUrl,
+      ratingKinopoisk:  best.rating,
+      genres:           best.genres   || [],
+      countries:        best.countries || [],
+    };
+  }
+
+  async function getWatchlistDraft(titles, count=3, excludeGenres=[], excludeSequels=false) {
+    const exclGenresLc = excludeGenres.map(g => g.toLowerCase());
+    const shuffled = [...titles].sort(() => Math.random() - 0.5);
+    const results = [], seenIds = new Set();
+    for (const item of shuffled) {
+      if (results.length >= count) break;
+      const film = await searchFilmByTitle(item.title, item.year);
+      if (!film?.kinopoiskId) continue;
+      const fid = film.kinopoiskId;
+      if (seenIds.has(fid)) continue;
+      if (exclGenresLc.length) {
+        const fg = (film.genres || []).map(g => (g.genre || '').toLowerCase());
+        if (exclGenresLc.some(eg => fg.some(g => g.includes(eg)))) continue;
+      }
+      if (excludeSequels && (looksLikeSequel(film.nameRu || '') || looksLikeSequel(film.nameEn || ''))) continue;
+      seenIds.add(fid);
+      results.push(film);
+    }
+    return results;
+  }
+
+  // ── UI ───────────────────────────────────────────────────────
   function openWhy() {
     document.getElementById('whyOverlay').classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -536,23 +464,21 @@
     document.body.style.overflow = '';
   }
 
-  let _hasApiKey = false;
+  let _hasApiKey  = false;
   let _hasTmdbKey = false;
 
-  async function fetchStats() {
-    try {
-      const res = await fetch(`${API}/api/stats`);
-      const data = await res.json();
-      const pct = Math.min(100, (data.used / data.limit) * 100);
-      document.getElementById('counterText').textContent = `${data.used} / ${data.limit}`;
-      document.getElementById('resetText').textContent = `resets in ${data.resets_in}`;
-      const bar = document.getElementById('counterBar');
-      bar.style.width = pct + '%';
-      bar.className = 'counter-bar' + (pct >= 90 ? ' danger' : pct >= 70 ? ' warn' : '');
-      _hasApiKey = !!data.has_key;
-      _hasTmdbKey = !!data.has_tmdb;
-      updateKeyBtn();
-    } catch(e) {}
+  function fetchStats() {
+    const used  = getCounter();
+    const limit = 500;
+    const pct   = Math.min(100, (used / limit) * 100);
+    document.getElementById('counterText').textContent = `${used} / ${limit}`;
+    document.getElementById('resetText').textContent   = `resets in ${getResetTime()}`;
+    const bar = document.getElementById('counterBar');
+    bar.style.width = pct + '%';
+    bar.className = 'counter-bar' + (pct >= 90 ? ' danger' : pct >= 70 ? ' warn' : '');
+    _hasApiKey  = !!getApiKey();
+    _hasTmdbKey = !!getTmdbKey();
+    updateKeyBtn();
   }
 
   function updateKeyBtn() {
@@ -581,97 +507,66 @@
     document.body.style.overflow = '';
   }
 
-  async function saveApiKey() {
+  function saveApiKey() {
     const input = document.getElementById('keyInput');
-    const key = input.value.trim();
-    const msg = document.getElementById('keyStatusMsg');
-    const btn = document.getElementById('keySaveBtn');
-
+    const key   = input.value.trim();
+    const msg   = document.getElementById('keyStatusMsg');
+    const btn   = document.getElementById('keySaveBtn');
     if (!key) {
       input.className = 'key-input key-error';
-      msg.className = 'key-status-msg err';
+      msg.className   = 'key-status-msg err';
       msg.textContent = t('Please enter a key.', 'Введите ключ.');
       return;
     }
-
-    btn.disabled = true;
-    msg.className = 'key-status-msg';
-    msg.textContent = t('Saving…', 'Сохраняем…');
-
-    try {
-      const res = await fetch(`${API}/api/key`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({key})
-      });
-      const data = await res.json();
-      if (data.ok) {
-        _hasApiKey = true;
-        updateKeyBtn();
-        msg.className = 'key-status-msg ok';
-        msg.textContent = t('Key saved. Ready to use.', 'Ключ сохранён. Можно пользоваться.');
-        input.className = 'key-input';
-        setTimeout(() => closeKeyOverlay(), 1200);
-      } else {
-        throw new Error(data.error || 'Failed');
-      }
-    } catch(e) {
-      msg.className = 'key-status-msg err';
-      msg.textContent = t('Failed to save. Is the server running?', 'Не удалось сохранить. Сервер запущен?');
-    }
-    btn.disabled = false;
+    setApiKey(key);
+    _hasApiKey = true;
+    updateKeyBtn();
+    fetchStats();
+    msg.className   = 'key-status-msg ok';
+    msg.textContent = t('Key saved. Ready to use.', 'Ключ сохранён. Можно пользоваться.');
+    input.className = 'key-input';
+    btn.textContent = t('SAVED ✓', 'ГОТОВО ✓');
+    btn.style.background = '#2ecc71';
+    btn.style.color = '#111';
+    setTimeout(() => {
+      btn.textContent = 'SAVE';
+      btn.style.background = '';
+      btn.style.color = '';
+      closeKeyOverlay();
+    }, 2000);
   }
 
-  async function saveTmdbKey() {
+  function saveTmdbKey() {
     const input = document.getElementById('tmdbInput');
-    const key = input.value.trim();
-    const msg = document.getElementById('tmdbStatusMsg');
-    const btn = document.getElementById('tmdbSaveBtn');
+    const key   = input.value.trim();
+    const msg   = document.getElementById('tmdbStatusMsg');
     if (!key) {
       input.className = 'key-input key-error';
-      msg.className = 'key-status-msg err';
+      msg.className   = 'key-status-msg err';
       msg.textContent = t('Please enter a key.', 'Введите ключ.');
       return;
     }
-    btn.disabled = true;
-    msg.className = 'key-status-msg';
-    msg.textContent = t('Saving…', 'Сохраняем…');
-    try {
-      const res = await fetch(`${API}/api/tmdb-key`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({key})
-      });
-      const data = await res.json();
-      if (data.ok) {
-        _hasTmdbKey = true;
-        msg.className = 'key-status-msg ok';
-        msg.textContent = t('TMDb key saved.', 'Ключ TMDb сохранён.');
-        input.className = 'key-input';
-        input.value = '';
-      } else throw new Error(data.error || 'Failed');
-    } catch(e) {
-      msg.className = 'key-status-msg err';
-      msg.textContent = t('Failed to save.', 'Не удалось сохранить.');
-    }
-    btn.disabled = false;
+    setTmdbKey(key);
+    _hasTmdbKey = true;
+    msg.className   = 'key-status-msg ok';
+    msg.textContent = t('TMDb key saved.', 'Ключ TMDb сохранён.');
+    input.className = 'key-input';
+    input.value = '';
   }
 
   function requireApiKey() {
-    if (!_hasApiKey) {
-      openKeyOverlay();
-      return false;
-    }
+    if (!_hasApiKey) { openKeyOverlay(); return false; }
     return true;
   }
 
-  fetchStats();
-  setInterval(fetchStats, 30000);
   let lang = 'en';
   let rouletteFilms = [];
   let rouletteIndex = 0;
   let rouletteSkipped = [];
   let isSpinning = false;
+
+  fetchStats();
+  setInterval(fetchStats, 30000);
 
   function setLang(l) {
     lang = l;
@@ -680,14 +575,12 @@
     document.querySelectorAll('[data-en]').forEach(el => {
       el.textContent = el.getAttribute(`data-${l}`);
     });
-    // Hero title needs innerHTML (contains <br> and <em>)
     const heroTitle = document.querySelector('.hero-title');
     if (heroTitle) {
       heroTitle.innerHTML = l === 'ru'
         ? 'ИССЛЕДУЙ<br>КИНО<br><em>ВСЛЕПУЮ.</em>'
         : 'DISCOVER<br>CINEMA<br><em>BLINDLY.</em>';
     }
-    // Cyrillic font
     document.body.classList.toggle('lang-ru', l === 'ru');
   }
 
@@ -723,7 +616,7 @@
     rerollBtn.style.display = isMystery ? '' : 'none';
     rerollBtn.disabled = false;
 
-    const STREAM_HOST = 'https://fbfree.lat'; // update here if domain changes
+    const STREAM_HOST = 'https://fbfree.lat';
     const wrap = document.getElementById('playerFrameWrap');
     const iframe = document.createElement('iframe');
     iframe.src = `${STREAM_HOST}/film/${filmId}/`;
@@ -742,12 +635,13 @@
     wrap.innerHTML = `<div class="resolving">${REEL_SVG}<div class="resolving-text">${t('Finding another film...', 'Ищем другой фильм...')}</div></div>`;
     document.getElementById('playerTitle').textContent = '?';
     try {
-      const res = await fetch(`${API}/api/mystery`);
-      const film = await res.json();
-      if (film.error) throw new Error(film.error);
+      const film = await getRandomFilm();
+      if (!film) throw new Error('no film');
+      const f = formatFilm(film);
+      fetchStats();
       const STREAM_HOST = 'https://fbfree.lat';
       const iframe = document.createElement('iframe');
-      iframe.src = `${STREAM_HOST}/film/${film.id}/`;
+      iframe.src = `${STREAM_HOST}/film/${f.id}/`;
       iframe.allowFullscreen = true;
       iframe.setAttribute('allowfullscreen', 'true');
       iframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
@@ -763,33 +657,29 @@
   // MYSTERY MOVIE
   async function openMystery() {
     if (!requireApiKey()) return;
-    fetchStats();
     const panel = document.getElementById('mysteryPanel');
-    const body = document.getElementById('mysteryBody');
+    const body  = document.getElementById('mysteryBody');
     panel.classList.add('active');
-
     body.innerHTML = loadingHTML(t('Loading your fate...', 'Загружаем судьбу...'));
-
     try {
-      const res = await fetch(`${API}/api/mystery`);
-      const film = await res.json();
-
-      if (film.error) throw new Error(film.error);
-
+      const film = await getRandomFilm();
+      if (!film) throw new Error('no film');
+      const f = formatFilm(film);
+      fetchStats();
       body.innerHTML = `
         <div class="mystery-reveal">
-          <div class="mystery-duration">~${film.genres && film.genres.length ? '???' : '???'}</div>
+          <div class="mystery-duration">???</div>
           <div class="mystery-duration-label">
             ${t('A film has been chosen for you', 'Фильм выбран для вас')}
           </div>
           <p class="mystery-hint">
             ${t('Title, year, genre — all hidden. Just press play.', 'Название, год, жанр — всё скрыто. Просто нажми play.')}
           </p>
-          <button class="btn btn-primary" onclick="watchFilm(${film.id}, '${esc(film.title_en)}', '${esc(film.title_ru)}', true, 'mysteryPanel')">
+          <button class="btn btn-primary" onclick="watchFilm(${f.id}, '${esc(f.title_en)}', '${esc(f.title_ru)}', true, 'mysteryPanel')">
             ▶ ${t('Play', 'Смотреть')}
           </button>
         </div>`;
-    } catch (e) {
+    } catch(e) {
       body.innerHTML = errorHTML(() => openMystery());
     }
   }
@@ -801,22 +691,22 @@
   try { lbCsvData = localStorage.getItem('lb_csv_data'); lbCsvName = localStorage.getItem('lb_csv_name'); } catch(e) {}
 
   const GENRES = [
-    {en:'Horror',    ru:'Ужасы',          kp:'ужасы'},
-    {en:'Thriller',  ru:'Триллер',         kp:'триллер'},
-    {en:'Action',    ru:'Боевик',          kp:'боевик'},
-    {en:'Comedy',    ru:'Комедия',         kp:'комедия'},
-    {en:'Romance',   ru:'Мелодрама',       kp:'мелодрама'},
-    {en:'Animation', ru:'Мультфильм',      kp:'мультфильм'},
-    {en:'Documentary',ru:'Документальный', kp:'документальный'},
-    {en:'Sci-Fi',    ru:'Фантастика',      kp:'фантастика'},
-    {en:'Fantasy',   ru:'Фэнтези',         kp:'фэнтези'},
-    {en:'Crime',     ru:'Криминал',        kp:'криминал'},
-    {en:'Western',   ru:'Вестерн',         kp:'вестерн'},
-    {en:'War',       ru:'Военный',         kp:'военный'},
-    {en:'Biography', ru:'Биография',       kp:'биография'},
-    {en:'History',   ru:'Исторический',    kp:'история'},
-    {en:'Musical',   ru:'Мюзикл',          kp:'музыкальный'},
-    {en:'Sport',     ru:'Спорт',           kp:'спорт'},
+    {en:'Horror',       ru:'Ужасы',           kp:'ужасы'},
+    {en:'Thriller',     ru:'Триллер',          kp:'триллер'},
+    {en:'Action',       ru:'Боевик',           kp:'боевик'},
+    {en:'Comedy',       ru:'Комедия',          kp:'комедия'},
+    {en:'Romance',      ru:'Мелодрама',        kp:'мелодрама'},
+    {en:'Animation',    ru:'Мультфильм',       kp:'мультфильм'},
+    {en:'Documentary',  ru:'Документальный',   kp:'документальный'},
+    {en:'Sci-Fi',       ru:'Фантастика',       kp:'фантастика'},
+    {en:'Fantasy',      ru:'Фэнтези',          kp:'фэнтези'},
+    {en:'Crime',        ru:'Криминал',         kp:'криминал'},
+    {en:'Western',      ru:'Вестерн',          kp:'вестерн'},
+    {en:'War',          ru:'Военный',          kp:'военный'},
+    {en:'Biography',    ru:'Биография',        kp:'биография'},
+    {en:'History',      ru:'Исторический',     kp:'история'},
+    {en:'Musical',      ru:'Мюзикл',           kp:'музыкальный'},
+    {en:'Sport',        ru:'Спорт',            kp:'спорт'},
   ];
 
   let _filterTab = 'random';
@@ -829,11 +719,11 @@
     const f = draftFilters;
 
     const GENRE_GROUPS = [
-      { label: t('Dark', 'Тёмные'),   genres: ['ужасы','триллер','криминал'] },
-      { label: t('Action', 'Экшн'),   genres: ['боевик','вестерн','военный'] },
-      { label: t('Light', 'Лёгкие'),  genres: ['комедия','мелодрама','музыкальный'] },
+      { label: t('Dark',        'Тёмные'),   genres: ['ужасы','триллер','криминал'] },
+      { label: t('Action',      'Экшн'),     genres: ['боевик','вестерн','военный'] },
+      { label: t('Light',       'Лёгкие'),   genres: ['комедия','мелодрама','музыкальный'] },
       { label: t('Imaginative', 'Фантазия'), genres: ['фантастика','фэнтези','мультфильм'] },
-      { label: t('Real', 'Реальное'), genres: ['документальный','биография','история','спорт'] },
+      { label: t('Real',        'Реальное'), genres: ['документальный','биография','история','спорт'] },
     ];
 
     const genreGroupsHtml = GENRE_GROUPS.map(grp => {
@@ -966,24 +856,14 @@
 
   function toggleCountry(c, btn) {
     const idx = draftFilters.excludeCountries.indexOf(c);
-    if (idx >= 0) {
-      draftFilters.excludeCountries.splice(idx, 1);
-      btn.className = 'chip';
-    } else {
-      draftFilters.excludeCountries.push(c);
-      btn.className = 'chip on-country';
-    }
+    if (idx >= 0) { draftFilters.excludeCountries.splice(idx, 1); btn.className = 'chip'; }
+    else          { draftFilters.excludeCountries.push(c);        btn.className = 'chip on-country'; }
   }
 
   function toggleGenre(g, btn) {
     const idx = draftFilters.excludeGenres.indexOf(g);
-    if (idx >= 0) {
-      draftFilters.excludeGenres.splice(idx, 1);
-      btn.className = 'chip';
-    } else {
-      draftFilters.excludeGenres.push(g);
-      btn.className = 'chip on-genre';
-    }
+    if (idx >= 0) { draftFilters.excludeGenres.splice(idx, 1); btn.className = 'chip'; }
+    else          { draftFilters.excludeGenres.push(g);        btn.className = 'chip on-genre'; }
   }
 
   function onLbFileChosen(input) {
@@ -1005,16 +885,15 @@
     if (minEl) {
       draftFilters.ratingMin = parseFloat(document.getElementById('ratingMin').value);
       draftFilters.ratingMax = parseFloat(document.getElementById('ratingMax').value);
-      draftFilters.yearMin = parseInt(document.getElementById('yearMin').value);
-      draftFilters.yearMax = parseInt(document.getElementById('yearMax').value);
+      draftFilters.yearMin   = parseInt(document.getElementById('yearMin').value);
+      draftFilters.yearMax   = parseInt(document.getElementById('yearMax').value);
     }
     openDraft(false, useWatchlist);
   }
 
   async function openDraft(reroll = false, useWatchlist = false) {
-    fetchStats();
     const panel = document.getElementById('draftPanel');
-    const body = document.getElementById('draftBody');
+    const body  = document.getElementById('draftBody');
     panel.classList.add('active');
     const f = draftFilters;
 
@@ -1027,33 +906,18 @@
         const yi = hdr.findIndex(h => h === 'year');
         if (ni < 0) throw new Error(t('No Name column in CSV', 'Нет колонки Name'));
         const titles = [];
-        
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
           const name = (cols[ni]||'').replace(/^"|"$/g,'').trim();
           const yr   = yi >= 0 ? (cols[yi]||'').replace(/^"|"$/g,'').trim() : null;
           if (name) titles.push({title: name, year: yr || null});
         }
-        
         if (!titles.length) throw new Error(t('No films in CSV', 'Фильмов нет'));
-        
-        for (let i = titles.length-1; i > 0; i--) {
-          const j = Math.floor(Math.random()*(i+1));
-          [titles[i], titles[j]] = [titles[j], titles[i]];
-        }
-        
         body.innerHTML = loadingHTML(t('Looking up films…', 'Ищем в Кинопоиске…'));
-        const res = await fetch(`${API}/api/watchlist`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({titles: titles.slice(0, 40), excludeGenres: f.excludeGenres, excludeSequels: f.excludeSequels})
-        });
-        const films = await res.json();
-        
-        if (films.error) throw new Error(films.error);
+        const films = await getWatchlistDraft(titles.slice(0, 40), 3, f.excludeGenres, f.excludeSequels);
         if (!films.length) throw new Error(t('No matches found', 'Совпадений нет'));
-        body.innerHTML = renderDraftGrid(films, true);
-        
+        fetchStats();
+        body.innerHTML = renderDraftGrid(films.map(formatFilm), true);
       } catch(e) {
         body.innerHTML = `<div style="text-align:center;padding:40px">
           <div style="font-size:13px;color:var(--muted);margin-bottom:20px">${e.message}</div>
@@ -1064,21 +928,12 @@
     }
 
     body.innerHTML = loadingHTML(t('Shuffling the deck...', 'Тасуем колоду...'));
-
-    const params = new URLSearchParams({
-      ratingMin: f.ratingMin, ratingMax: f.ratingMax,
-      yearMin: f.yearMin, yearMax: f.yearMax,
-      excludeCountries: f.excludeCountries.join(','),
-      excludeGenres: f.excludeGenres.join(','),
-      excludeSequels: f.excludeSequels ? '1' : '0'
-    });
-
     try {
-      const res = await fetch(`${API}/api/draft?${params}`);
-      const films = await res.json();
-      if (!Array.isArray(films) || films.length < 1) throw new Error('Not enough films');
-      body.innerHTML = renderDraftGrid(films, false);
-    } catch (e) {
+      const films = await getFilmsBatch(3, f.ratingMin, f.ratingMax, f.yearMin, f.yearMax, f.excludeCountries, f.excludeSequels, f.excludeGenres);
+      if (!films.length) throw new Error('Not enough films');
+      fetchStats();
+      body.innerHTML = renderDraftGrid(films.map(formatFilm), false);
+    } catch(e) {
       body.innerHTML = errorHTML(() => openDraft(reroll, false));
     }
   }
@@ -1104,13 +959,13 @@
           </div>
         </div>`;
     }).join('');
-    
+
     const reroll = fromWatchlist
       ? `<button class="btn btn-ghost" onclick="openDraft(true, true)">↺ ${t('Reroll Watchlist', 'Ещё из вотчлиста')}</button>`
       : `<button class="btn btn-ghost" onclick="openDraft(true, false)">↺ ${t('Reroll', 'Перемешать')}</button>`;
-      
+
     const filtersTab = fromWatchlist ? 'watchlist' : 'random';
-    
+
     return `<div class="draft-grid">${cards}</div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:20px">
         ${reroll}
@@ -1121,9 +976,8 @@
   // CINEMA ROULETTE
   async function openRoulette() {
     if (!requireApiKey()) return;
-    fetchStats();
     const panel = document.getElementById('roulettePanel');
-    const body = document.getElementById('rouletteBody');
+    const body  = document.getElementById('rouletteBody');
     panel.classList.add('active');
 
     body.innerHTML = loadingHTML(t('Loading the chamber...', 'Заряжаем барабан...'));
@@ -1131,19 +985,20 @@
     rouletteIndex = 0;
 
     try {
-      const res = await fetch(`${API}/api/roulette`);
-      rouletteFilms = await res.json();
-      if (!Array.isArray(rouletteFilms) || rouletteFilms.length < 6) throw new Error('Not enough films');
+      const filmsRaw = await getRouletteFilms();
+      if (filmsRaw.length < 6) throw new Error('Not enough films');
+      rouletteFilms = filmsRaw.map(formatFilm);
+      fetchStats();
       renderRoulette(body);
-    } catch (e) {
+    } catch(e) {
       body.innerHTML = errorHTML(() => openRoulette());
     }
   }
 
-  const RSLOT_W   = 180;
-  const RSLOT_GAP = 10;
+  const RSLOT_W    = 180;
+  const RSLOT_GAP  = 10;
   const RSLOT_STEP = RSLOT_W + RSLOT_GAP;
-  const R_REPEATS = 8;
+  const R_REPEATS  = 8;
 
   function buildRouletteStrip() {
     const N = rouletteFilms.length;
@@ -1186,7 +1041,7 @@
   function renderRoulette(body) {
     const N = rouletteFilms.length;
     const isLast = rouletteIndex >= N - 1;
-    const curr = rouletteFilms[rouletteIndex];
+    const curr   = rouletteFilms[rouletteIndex];
     const filmId  = curr ? curr.id : 0;
     const titleEn = curr ? esc(curr.title_en) : '';
     const titleRu = curr ? esc(curr.title_ru) : '';
@@ -1215,10 +1070,10 @@
       </div>`;
 
     const startGi = N + rouletteIndex;
-    const vp = document.getElementById('rouletteViewport');
+    const vp    = document.getElementById('rouletteViewport');
     const strip = document.getElementById('rouletteStrip');
     strip.style.transition = 'none';
-    strip.style.transform = `translateX(${txForSlot(startGi, vp.offsetWidth)}px)`;
+    strip.style.transform  = `translateX(${txForSlot(startGi, vp.offsetWidth)}px)`;
 
     markActiveSlot(startGi, filmId, titleEn, titleRu);
   }
@@ -1239,7 +1094,7 @@
     const startGi  = N + rouletteIndex;
     const targetGi = N * 5 + nextIndex;
 
-    const vpWidth = vp.offsetWidth;
+    const vpWidth  = vp.offsetWidth;
     const startTx  = txForSlot(startGi,  vpWidth);
     const targetTx = txForSlot(targetGi, vpWidth);
 
@@ -1277,7 +1132,7 @@
         ${t('Connection Error', 'Ошибка соединения')}
       </div>
       <div style="color:var(--muted);font-size:13px;margin-bottom:24px">
-        ${t('Make sure the server is running at localhost:7777', 'Убедись, что сервер запущен на localhost:7777')}
+        ${t('Check your API key and internet connection.', 'Проверьте API ключ и подключение к интернету.')}
       </div>
       <button class="btn btn-ghost" onclick="window['${fnId}']()">
         ${t('Retry', 'Повторить')}
@@ -1286,37 +1141,22 @@
   }
 
   async function posterError(img) {
-    // Step 1: proxy failed — try TMDb
-    if (!img.dataset.tmdbTried && _hasTmdbKey) {
+    if (!img.dataset.tmdbTried && getTmdbKey()) {
       img.dataset.tmdbTried = '1';
       try {
-        const res = await fetch(`${API}/api/tmdb-poster`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            title_en: img.dataset.titleEn || '',
-            title_ru: img.dataset.titleRu || '',
-            year: img.dataset.year || null
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.url) { img.src = data.url; return; }
-        }
+        const url = await tmdbPosterForFilm(
+          img.dataset.titleEn || '',
+          img.dataset.titleRu || '',
+          img.dataset.year    || null
+        );
+        if (url) { img.src = url; return; }
       } catch(e) {}
     }
-    // Step 2: both failed — show stylised placeholder
     const wrap = img.parentElement;
     img.style.display = 'none';
-    // find or create placeholder
     let ph = wrap.querySelector('.draft-poster-placeholder, .roulette-slot-placeholder');
-    if (ph) {
-      ph.style.display = 'flex';
-      ph.innerHTML = POSTER_PLACEHOLDER_SVG;
-    }
+    if (ph) { ph.style.display = 'flex'; ph.innerHTML = POSTER_PLACEHOLDER_SVG; }
   }
-
-  const POSTER_PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 65" style="width:36px;height:auto;fill:#2a2a2a;opacity:0.6"><path d="M12.543 65H1.26758C0.57377 64.9999 0 64.423 0 63.7256V54.1455H12.543V65ZM28.4062 64.999H15.8643V54.1455H28.4062V64.999ZM44.2705 64.999H31.7285V54.1455H44.2705V64.999ZM60.1348 64.999H47.5928V54.1455H60.1348V64.999ZM76 63.7256C75.9998 64.4133 75.4426 64.999 74.7324 64.999H63.457V54.1455H76V63.7256ZM75.999 50.8057H0V14.1943H75.999V50.8057ZM37.5 41.8584C36.0204 41.8584 34.8167 43.0612 34.8164 44.5322C34.8164 46.0211 36.0238 47.2207 37.5 47.2207C38.9797 47.2206 40.1836 46.0175 40.1836 44.5322C40.1833 43.0613 38.9796 41.8585 37.5 41.8584ZM37.5 19C32.8129 19 29 22.7995 29 27.4707H33.3086C33.3086 25.1669 35.1883 23.293 37.5 23.293C38.5832 23.293 39.6275 23.738 40.4346 24.5459C41.2453 25.3538 41.6914 26.3915 41.6914 27.4746C41.6913 29.0833 40.7883 30.5223 39.3369 31.2314C36.9121 32.4063 35.3478 35.0207 35.3477 37.8818V39.4346H39.6562V37.8818C39.6528 36.6471 40.2718 35.5497 41.2275 35.084C44.1693 33.6516 46 30.7342 46 27.4707C46 25.2445 45.1073 23.1237 43.4824 21.5078C41.8576 19.8886 39.7336 19 37.5 19ZM12.543 10.8545H0V1.27441C0 0.577028 0.57377 0.00010174 1.26758 0H12.543V10.8545ZM28.4062 10.8545H15.8643V0H28.4062V10.8545ZM44.2705 10.8545H31.7285V0H44.2705V10.8545ZM60.1348 10.8545H47.5928V0H60.1348V10.8545ZM75.6289 0.37207L75.626 0.375977C75.8568 0.607273 75.999 0.92585 75.999 1.27441V10.8545H63.457V0H74.7314L75.6289 0.37207Z"/></svg>`;
 
   function esc(s) {
     return (s || '')
@@ -1348,6 +1188,149 @@
       closePlayer();
     }
   });
+
+  // ── Logo easter egg ──────────────────────────────────────────
+  (function() {
+    const MAX_CLICKS  = 15;
+    const BASE_RPM    = 60;          // rpm at click 1
+    const MAX_RPM     = 1800;        // rpm at click 15
+    const DECEL_MS    = 2800;        // time to coast to stop after last click
+    const IDLE_WAIT   = 1200;        // ms of no clicks before decel starts
+
+    let clicks        = 0;
+    let rpm           = 0;
+    let angleDeg      = 0;
+    let lastClickTime = 0;
+    let rafId         = null;
+    let lastFrameTime = null;
+    let decelTimer    = null;
+    let decelerating  = false;
+    let flashbangDone = false;
+
+    function getRpm(n) {
+      // exponential ramp from BASE_RPM to MAX_RPM over MAX_CLICKS steps
+      const t = (n - 1) / (MAX_CLICKS - 1);
+      return BASE_RPM + (MAX_RPM - BASE_RPM) * (Math.pow(4, t) - 1) / 3;
+    }
+
+    function spin(ts) {
+      if (!lastFrameTime) lastFrameTime = ts;
+      const dt = (ts - lastFrameTime) / 1000; // seconds
+      lastFrameTime = ts;
+
+      if (decelerating) {
+        rpm = Math.max(0, rpm - (rpm / (DECEL_MS / 1000)) * dt * 3);
+      }
+
+      angleDeg = (angleDeg + rpm / 60 * 360 * dt) % 360;
+      const icon = document.getElementById('logoIcon');
+      if (icon) icon.style.transform = `rotate(${angleDeg}deg)`;
+
+      if (rpm > 0.5) {
+        rafId = requestAnimationFrame(spin);
+      } else {
+        rpm = 0;
+        clicks = 0;
+        flashbangDone = false;
+        decelerating = false;
+        lastFrameTime = null;
+        rafId = null;
+        const icon = document.getElementById('logoIcon');
+        if (icon) icon.style.transform = '';
+      }
+    }
+
+    function startSpinLoop() {
+      if (rafId) return;
+      lastFrameTime = null;
+      rafId = requestAnimationFrame(spin);
+    }
+
+    function scheduleDecel() {
+      clearTimeout(decelTimer);
+      decelTimer = setTimeout(() => {
+        decelerating = true;
+      }, IDLE_WAIT);
+    }
+
+    function triggerFlashbang() {
+      // Create overlay elements
+      const flashEl = document.createElement('div');
+      flashEl.id = 'flashbang-overlay';
+      flashEl.style.cssText = [
+        'position:fixed', 'inset:0', 'z-index:99999',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'background:#fff', 'opacity:0', 'pointer-events:none',
+        'transition:none'
+      ].join(';');
+
+      const wordEl = document.createElement('div');
+      wordEl.textContent = 'FLASHBANG!';
+      wordEl.style.cssText = [
+        'font-family:"Bebas Neue",sans-serif',
+        'font-size:22vw',
+        'color:#fff',
+        'letter-spacing:4px',
+        'line-height:1',
+        'animation:fb-blink 0.08s steps(1) 3',
+        'white-space:nowrap'
+      ].join(';');
+
+      // Inject blink keyframes if not present
+      if (!document.getElementById('fb-style')) {
+        const s = document.createElement('style');
+        s.id = 'fb-style';
+        s.textContent = '@keyframes fb-blink { 0%,100%{opacity:1} 50%{opacity:0} }';
+        document.head.appendChild(s);
+      }
+
+      flashEl.appendChild(wordEl);
+      document.body.appendChild(flashEl);
+
+      // Phase 1: show FLASHBANG! word for 0.25s (background still dark)
+      flashEl.style.background = 'transparent';
+      flashEl.style.opacity    = '1';
+
+      setTimeout(() => {
+        // Phase 2: pure white for 1.88s
+        wordEl.style.display = 'none';
+        flashEl.style.background = '#fff';
+        flashEl.style.opacity    = '1';
+
+        setTimeout(() => {
+          // Phase 3: fade back over 3s
+          flashEl.style.transition = 'opacity 3s ease';
+          flashEl.style.opacity    = '0';
+
+          setTimeout(() => {
+            flashEl.remove();
+            clicks = 0;
+            flashbangDone = false;
+          }, 3100);
+        }, 1880);
+      }, 250);
+    }
+
+    window.logoClick = function(e) {
+      e.preventDefault();
+      decelerating = false;
+      clearTimeout(decelTimer);
+
+      if (clicks < MAX_CLICKS) clicks++;
+      rpm = getRpm(clicks);
+      lastClickTime = Date.now();
+
+      if (clicks === MAX_CLICKS && !flashbangDone) {
+        flashbangDone = true;
+        // Let it spin at max for one moment, then flashbang
+        setTimeout(triggerFlashbang, 120);
+      }
+
+      startSpinLoop();
+      scheduleDecel();
+    };
+  })();
 </script>
+
 </body>
 </html>
