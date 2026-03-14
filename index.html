@@ -340,7 +340,7 @@
     return null;
   }
 
-  async function getFilmsBatch(count=3, ratingMin=1, ratingMax=10, yearMin=1900, yearMax=null, excludeCountries=[], excludeSequels=false, excludeGenres=[], genreMode='exclude') {
+  async function getFilmsBatch(count=3, ratingMin=1, ratingMax=10, yearMin=1900, yearMax=null, excludeCountries=[], excludeSequels=false, excludeGenres=[], genreMode='exclude', countryMode='exclude') {
     if (!yearMax) yearMax = new Date().getFullYear();
     const genresLc = excludeGenres.map(g => g.toLowerCase());
     const films = [], seenIds = new Set();
@@ -360,7 +360,13 @@
         const fid = f.kinopoiskId;
         if (!fid || seenIds.has(fid)) continue;
         const countries = (f.countries || []).map(c => c.country || '');
-        if (excludeCountries.some(ex => countries.some(c => c.toLowerCase().includes(ex.toLowerCase())))) continue;
+        if (excludeCountries.length) {
+          if (countryMode === 'exclude') {
+            if (excludeCountries.some(ex => countries.some(c => c.toLowerCase().includes(ex.toLowerCase())))) continue;
+          } else {
+            if (!excludeCountries.some(ex => countries.some(c => c.toLowerCase().includes(ex.toLowerCase())))) continue;
+          }
+        }
         if (excludeSequels && (looksLikeSequel(f.nameRu || '') || looksLikeSequel(f.nameEn || ''))) continue;
         if (genresLc.length) {
           const fg = (f.genres || []).map(g => (g.genre || '').toLowerCase());
@@ -701,7 +707,7 @@
 
   // SINGLE DRAFT
   const CURRENT_YEAR = new Date().getFullYear();
-  let draftFilters = { ratingMin: 1, ratingMax: 10, yearMin: 1900, yearMax: CURRENT_YEAR, excludeCountries: [], excludeGenres: [], excludeSequels: false, genreMode: 'exclude' };
+  let draftFilters = { ratingMin: 1, ratingMax: 10, yearMin: 1900, yearMax: CURRENT_YEAR, excludeCountries: [], excludeGenres: [], excludeSequels: false, genreMode: 'exclude', countryMode: 'exclude' };
   let lbCsvData = null, lbCsvName = null;
   try { lbCsvData = localStorage.getItem('lb_csv_data'); lbCsvName = localStorage.getItem('lb_csv_name'); } catch(e) {}
 
@@ -747,8 +753,12 @@
         if (!g) return '';
         const lbl = lang === 'ru' ? g.ru : g.en;
         const on = f.excludeGenres.includes(kp);
-        const onClass = on ? (f.genreMode === 'include' ? ' on-genre' : ' on-genre-excl') : '';
-        return `<button onclick="toggleGenre('${kp}',this)" class="chip${onClass}">${lbl}</button>`;
+        const chipStyle = on
+          ? (f.genreMode === 'include'
+              ? 'border-color:var(--accent);color:var(--accent);background:rgba(232,197,71,0.06)'
+              : 'border-color:var(--film-red);color:var(--film-red);background:rgba(192,57,43,0.06)')
+          : '';
+        return `<button onclick="toggleGenre('${kp}',this)" class="chip" style="${chipStyle}">${lbl}</button>`;
       }).join('');
       return `<div class="genre-group"><div class="genre-group-label">${grp.label}</div><div class="chip-grid">${chips}</div></div>`;
     }).join('');
@@ -756,25 +766,38 @@
     const COUNTRIES = ['USA','Japan','France','South Korea','India','Italy','Germany','Spain','China','Iran','Russia'];
     const countryChips = COUNTRIES.map(c => {
       const on = f.excludeCountries.includes(c);
-      return `<button onclick="toggleCountry('${c}',this)" class="chip${on ? ' on-country' : ''}">${c}</button>`;
+      // Inline styles so behaviour isn't dependent on external CSS being up to date
+      const chipStyle = on
+        ? (f.countryMode === 'include'
+            ? 'border-color:var(--accent);color:var(--accent);background:rgba(232,197,71,0.06)'
+            : 'border-color:var(--film-red);color:var(--film-red);background:rgba(192,57,43,0.06)')
+        : '';
+      return `<button onclick="toggleCountry('${c}',this)" class="chip" style="${chipStyle}">${c}</button>`;
     }).join('');
 
     const sequelsOn = f.excludeSequels;
     const csvLbl = lbCsvName ? lbCsvName : null;
 
+    // Mode toggle HTML helper
+    const modeToggle = (getter, setFn) => `
+      <div style="display:flex;border:1px solid var(--border);flex-shrink:0">
+        <button onclick="${setFn}('exclude')" style="background:${getter === 'exclude' ? 'var(--accent)' : 'none'};border:none;color:${getter === 'exclude' ? 'var(--bg)' : 'var(--muted)'};font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-transform:uppercase">${t('EXCLUDE','ИСКЛЮЧИТЬ')}</button>
+        <button onclick="${setFn}('include')" style="background:${getter === 'include' ? 'var(--accent)' : 'none'};border:none;color:${getter === 'include' ? 'var(--bg)' : 'var(--muted)'};font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-transform:uppercase">${t('INCLUDE','ВКЛЮЧИТЬ')}</button>
+      </div>`;
+
     const sharedFilters = `
       <div class="filter-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <div class="filter-label" style="margin-bottom:0">${f.genreMode === 'include' ? t('In the mood for', 'Хочу посмотреть') : t('Exclude genres', 'Исключить жанры')}</div>
-          <div style="display:flex;border:1px solid var(--border);flex-shrink:0">
-            <button onclick="setGenreMode('exclude')" style="background:${f.genreMode === 'exclude' ? 'var(--accent)' : 'none'};border:none;color:${f.genreMode === 'exclude' ? 'var(--bg)' : 'var(--muted)'};font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-transform:uppercase;transition:all 0.15s">${t('EXCLUDE', 'ИСКЛЮЧИТЬ')}</button>
-            <button onclick="setGenreMode('include')" style="background:${f.genreMode === 'include' ? 'var(--accent)' : 'none'};border:none;color:${f.genreMode === 'include' ? 'var(--bg)' : 'var(--muted)'};font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1.5px;padding:4px 10px;cursor:pointer;text-transform:uppercase;transition:all 0.15s">${t('INCLUDE', 'ВКЛЮЧИТЬ')}</button>
-          </div>
+          ${modeToggle(f.genreMode, 'setGenreMode')}
         </div>
         ${genreGroupsHtml}
       </div>
       <div class="filter-section">
-        <div class="filter-label">${t('Exclude countries', 'Исключить страны')}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="filter-label" style="margin-bottom:0">${f.countryMode === 'include' ? t('Countries only', 'Только страны') : t('Exclude countries', 'Исключить страны')}</div>
+          ${modeToggle(f.countryMode, 'setCountryMode')}
+        </div>
         <div class="chip-grid">${countryChips}</div>
       </div>
       <div class="toggle-row" onclick="toggleSequels(this)">
@@ -821,17 +844,16 @@
     const watchlistPane = `
       <div class="filter-pane${_filterTab === 'watchlist' ? ' active' : ''}" id="paneWatchlist">
         <div class="filter-section">
-          <div class="lb-drop${csvLbl ? ' has-file' : ''}" id="lbDropZone">
-            <div class="lb-drop-icon">${csvLbl ? '🎬' : '📂'}</div>
+          <div class="lb-drop${csvLbl ? ' has-file' : ''}" id="lbDropZone" style="padding:48px 20px;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div class="lb-drop-icon" style="font-size:32px;margin-bottom:12px">${csvLbl ? '🎬' : '📂'}</div>
             ${csvLbl
-              ? `<div class="lb-drop-label">${t('Watchlist loaded', 'Вотчлист загружен')}</div><div class="lb-drop-filename">${csvLbl}</div>`
-              : `<div class="lb-drop-label">${t('Click to select watchlist.csv', 'Нажмите чтобы выбрать watchlist.csv')}</div>`}
+              ? `<div class="lb-drop-label" style="font-size:14px">${t('Watchlist loaded', 'Вотчлист загружен')}</div><div class="lb-drop-filename">${csvLbl}</div>`
+              : `<div class="lb-drop-label" style="font-size:14px">${t('Click to select watchlist.csv', 'Нажмите чтобы выбрать watchlist.csv')}</div>`}
             <input id="lbFileInput" type="file" accept=".csv" onchange="onLbFileChosen(this)">
           </div>
           <div class="lb-hint">${t('Letterboxd → Settings → Import & Export → Export Your Data → watchlist.csv', 'Letterboxd → Настройки → Экспорт данных → watchlist.csv')}</div>
         </div>
-        ${sharedFilters}
-        <button class="btn btn-primary" style="width:100%;margin-top:8px" ${!lbCsvData ? 'disabled' : ''} onclick="applyDraftFilters(true)">
+        <button class="btn btn-primary" style="width:100%;margin-top:16px" ${!lbCsvData ? 'disabled' : ''} onclick="applyDraftFilters(true)">
           ${t('Draw from Watchlist', 'Выбрать из вотчлиста')}
         </button>
       </div>`;
@@ -878,19 +900,39 @@
 
   function toggleCountry(c, btn) {
     const idx = draftFilters.excludeCountries.indexOf(c);
-    if (idx >= 0) { draftFilters.excludeCountries.splice(idx, 1); btn.className = 'chip'; }
-    else          { draftFilters.excludeCountries.push(c);        btn.className = 'chip on-country'; }
+    if (idx >= 0) {
+      draftFilters.excludeCountries.splice(idx, 1);
+      btn.style = '';
+    } else {
+      draftFilters.excludeCountries.push(c);
+      btn.style.cssText = draftFilters.countryMode === 'include'
+        ? 'border-color:var(--accent);color:var(--accent);background:rgba(232,197,71,0.06)'
+        : 'border-color:var(--film-red);color:var(--film-red);background:rgba(192,57,43,0.06)';
+    }
   }
 
   function toggleGenre(g, btn) {
     const idx = draftFilters.excludeGenres.indexOf(g);
-    if (idx >= 0) { draftFilters.excludeGenres.splice(idx, 1); btn.className = 'chip'; }
-    else          { draftFilters.excludeGenres.push(g);        btn.className = draftFilters.genreMode === 'include' ? 'chip on-genre' : 'chip on-genre-excl'; }
+    if (idx >= 0) {
+      draftFilters.excludeGenres.splice(idx, 1);
+      btn.style = '';
+    } else {
+      draftFilters.excludeGenres.push(g);
+      btn.style.cssText = draftFilters.genreMode === 'include'
+        ? 'border-color:var(--accent);color:var(--accent);background:rgba(232,197,71,0.06)'
+        : 'border-color:var(--film-red);color:var(--film-red);background:rgba(192,57,43,0.06)';
+    }
   }
 
   function setGenreMode(mode) {
     draftFilters.genreMode = mode;
-    draftFilters.excludeGenres = []; // clear selection when switching modes
+    draftFilters.excludeGenres = [];
+    showDraftFilters();
+  }
+
+  function setCountryMode(mode) {
+    draftFilters.countryMode = mode;
+    draftFilters.excludeCountries = [];
     showDraftFilters();
   }
 
@@ -957,7 +999,7 @@
 
     body.innerHTML = loadingHTML(t('Shuffling the deck...', 'Тасуем колоду...'));
     try {
-      const films = await getFilmsBatch(3, f.ratingMin, f.ratingMax, f.yearMin, f.yearMax, f.excludeCountries, f.excludeSequels, f.excludeGenres, f.genreMode);
+      const films = await getFilmsBatch(3, f.ratingMin, f.ratingMax, f.yearMin, f.yearMax, f.excludeCountries, f.excludeSequels, f.excludeGenres, f.genreMode, f.countryMode);
       if (!films.length) throw new Error('Not enough films');
       fetchStats();
       body.innerHTML = renderDraftGrid(films.map(formatFilm), false);
