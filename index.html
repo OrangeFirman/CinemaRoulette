@@ -345,15 +345,64 @@
     const genresLc = excludeGenres.map(g => g.toLowerCase());
     const films = [], seenIds = new Set();
 
+    // Partition the year range into `count` buckets so results span different eras
+    const span = yearMax - yearMin;
+    const buckets = Array.from({ length: count }, (_, i) => {
+      const bStart = yearMin + Math.floor(span * i / count);
+      const bEnd   = yearMin + Math.floor(span * (i + 1) / count);
+      return [bStart, bEnd];
+    });
+
     const ORDERS = ['YEAR', 'NUM_VOTE', 'RATING'];
-    let taskIdx = 0;
-    const tasks = Array.from({ length: 18 }, () => async () => {
-      if (films.length >= count) return;
-      const [yStart, yEnd] = randomYearWindow(yearMin, yearMax);
-      // Rotate through sort orders so we don't hit the same ranked films repeatedly
-      const order = ORDERS[taskIdx++ % ORDERS.length];
-      const page = Math.floor(Math.random() * 20) + 1;
-      const data = await kpRequest(`/v2.2/films?order=${order}&type=FILM&page=${page}&ratingFrom=${ratingMin}&ratingTo=${ratingMax}&yearFrom=${yStart}&yearTo=${yEnd}`);
+    // One slot per bucket, up to 6 attempts each before giving up and going free-range
+    const tasks = [
+      ...buckets.map((bucket, bi) => async () => {
+        if (films.length >= count) return;
+        const [bStart, bEnd] = bucket;
+        for (let attempt = 0; attempt < 6 && films.length < count; attempt++) {
+          const [yStart, yEnd] = randomYearWindow(bStart, bEnd);
+          const order = ORDERS[(bi + attempt) % ORDERS.length];
+          const page = Math.floor(Math.random() * 20) + 1;
+          const data = await kpRequest(`/v2.2/films?order=${order}&type=FILM&page=${page}&ratingFrom=${ratingMin}&ratingTo=${ratingMax}&yearFrom=${yStart}&yearTo=${yEnd}`);
+          if (!data?.items?.length) continue;
+          for (const f of [...data.items].sort(() => Math.random() - 0.5)) {
+            if (films.length >= count) break;
+            const fid = f.kinopoiskId;
+            if (!fid || seenIds.has(fid)) continue;
+            const countries = (f.countries || []).map(c => c.country || '');
+            if (excludeCountries.length) {
+              if (countryMode === 'exclude') {
+                if (excludeCountries.some(ex => countries.some(c => c.toLowerCase().includes(ex.toLowerCase())))) continue;
+              } else {
+                if (!excludeCountries.some(ex => countries.some(c => c.toLowerCase().includes(ex.toLowerCase())))) continue;
+              }
+            }
+            if (excludeSequels && (looksLikeSequel(f.nameRu || '') || looksLikeSequel(f.nameEn || ''))) continue;
+            if (genresLc.length) {
+              const fg = (f.genres || []).map(g => (g.genre || '').toLowerCase());
+              if (genreMode === 'exclude') {
+                if (genresLc.some(eg => fg.some(g => g.includes(eg)))) continue;
+              } else {
+                if (!genresLc.some(eg => fg.some(g => g.includes(eg)))) continue;
+              }
+            }
+            const rating = f.ratingKinopoisk || f.ratingImdb;
+            const filmYear = parseInt(f.year) || 0;
+            const thisYear = new Date().getFullYear();
+            if (!rating) continue;
+            if (filmYear > thisYear) continue;
+            if (rating < ratingMin || rating > ratingMax) continue;
+            seenIds.add(fid); films.push(f); break;
+          }
+        }
+      }),
+      // Free-range fallback tasks in case buckets couldn't fill all slots
+      ...Array.from({ length: 9 }, (_, i) => async () => {
+        if (films.length >= count) return;
+        const [yStart, yEnd] = randomYearWindow(yearMin, yearMax);
+        const order = ORDERS[i % ORDERS.length];
+        const page = Math.floor(Math.random() * 20) + 1;
+        const data = await kpRequest(`/v2.2/films?order=${order}&type=FILM&page=${page}&ratingFrom=${ratingMin}&ratingTo=${ratingMax}&yearFrom=${yStart}&yearTo=${yEnd}`);
       if (!data?.items?.length) return;
       for (const f of [...data.items].sort(() => Math.random() - 0.5)) {
         if (films.length >= count) break;
@@ -376,16 +425,16 @@
             if (!genresLc.some(eg => fg.some(g => g.includes(eg)))) continue;
           }
         }
-        // Post-filter: skip unreleased (no rating) and future films
         const rating = f.ratingKinopoisk || f.ratingImdb;
         const filmYear = parseInt(f.year) || 0;
         const thisYear = new Date().getFullYear();
-        if (!rating) continue;                                      // no score = unreleased/unrated
-        if (filmYear > thisYear) continue;                          // not out yet
-        if (rating < ratingMin || rating > ratingMax) continue;     // outside rating range
+        if (!rating) continue;
+        if (filmYear > thisYear) continue;
+        if (rating < ratingMin || rating > ratingMax) continue;
         seenIds.add(fid); films.push(f);
       }
-    });
+    }),
+    ];
 
     await runPool(tasks, 3, () => films.length >= count);
     return films.slice(0, count);
@@ -628,7 +677,23 @@
 
   function watchFilm(filmId, titleEn, titleRu, hideTitle, fromPanel) {
     const title = lang === 'ru' ? (titleRu || titleEn) : (titleEn || titleRu);
-    document.getElementById('playerTitle').textContent = hideTitle ? '?' : title;
+    const titleEl = document.getElementById('playerTitle');
+    if (hideTitle) {
+      titleEl.textContent = '?';
+      titleEl.dataset.realTitle = title;
+      titleEl.style.cssText = 'cursor:pointer;opacity:0.5;transition:opacity 0.2s';
+      titleEl.title = t('Click to reveal', 'Нажмите, чтобы узнать');
+      titleEl.onclick = () => {
+        titleEl.textContent = titleEl.dataset.realTitle;
+        titleEl.style.cssText = '';
+        titleEl.onclick = null;
+        titleEl.title = '';
+      };
+    } else {
+      titleEl.textContent = title;
+      titleEl.style.cssText = '';
+      titleEl.onclick = null;
+    }
     _lastPanel = fromPanel || null;
     document.getElementById('playerOverlay').classList.add('active');
 
@@ -654,7 +719,10 @@
     const wrap = document.getElementById('playerFrameWrap');
     rerollBtn.disabled = true;
     wrap.innerHTML = `<div class="resolving">${REEL_SVG}<div class="resolving-text">${t('Finding another film...', 'Ищем другой фильм...')}</div></div>`;
-    document.getElementById('playerTitle').textContent = '?';
+    const titleEl = document.getElementById('playerTitle');
+    titleEl.textContent = '?';
+    titleEl.style.cssText = '';
+    titleEl.onclick = null;
     try {
       const film = await getRandomFilm();
       if (!film) throw new Error('no film');
